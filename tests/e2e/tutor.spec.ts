@@ -50,7 +50,15 @@ async function mockTutor(
 
 async function mockSignedInCoach(
   page: Page,
-  { repPrompt }: { repPrompt?: string } = {},
+  {
+    completeRepFails = false,
+    completeRepDelayMs = 0,
+    repPrompt,
+  }: {
+    completeRepFails?: boolean;
+    completeRepDelayMs?: number;
+    repPrompt?: string;
+  } = {},
 ) {
   const encode = (value: object) =>
     Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -152,6 +160,18 @@ async function mockSignedInCoach(
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ rep: dashboard.pendingRep }),
+      });
+      return;
+    }
+
+    if (completeRepDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, completeRepDelayMs));
+    }
+    if (completeRepFails) {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Could not save coaching progress." }),
       });
       return;
     }
@@ -341,6 +361,17 @@ test("signed in learner completes a rep and resumes the saved next rep", async (
   await expect(
     progressTrail.getByText("Explain compound interest and give one example."),
   ).toBeVisible();
+  const trailDot = await progressTrail
+    .locator(".progress-trail-dot")
+    .boundingBox();
+  const trailPrompt = await progressTrail
+    .locator(".progress-trail-prompt")
+    .boundingBox();
+  expect(trailDot).not.toBeNull();
+  expect(trailPrompt).not.toBeNull();
+  expect(
+    (trailDot?.x ?? Infinity) + (trailDot?.width ?? 0),
+  ).toBeLessThanOrEqual(trailPrompt?.x ?? 0);
   const nextRepCard = await page.locator(".next-rep-card").boundingBox();
   const followUpComposer = await page
     .getByLabel("Ask a follow-up")
@@ -390,7 +421,7 @@ test("coach panel scroll cue appears only while content remains below", async ({
   await expect(scrollCue).toHaveAttribute("data-visible", "false");
 });
 
-test("signed in learner confirms before abandoning a pending rep", async ({
+test("signed in learner finishes the pending rep from the goal-switch dialog", async ({
   page,
 }) => {
   await mockTutor(page);
@@ -403,16 +434,92 @@ test("signed in learner confirms before abandoning a pending rep", async ({
   await page.getByRole("button", { name: "Start learning" }).last().click();
 
   const dialog = page.getByRole("dialog", {
-    name: "Start “Machine learning” instead?",
+    name: "Two minutes and it counts",
   });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("How does compound interest work?");
   await expect(dialog).toContainText(
     "Explain compound interest and give one example.",
   );
+  await expect(dialog).toContainText("Machine learning");
   expect(coachActions).toEqual([]);
 
-  await dialog.getByRole("button", { name: "Finish this rep first" }).click();
+  await dialog
+    .getByLabel("Try it now")
+    .fill("Interest earns more interest after each period.");
+  await dialog
+    .getByRole("button", { name: "Save this rep, then switch" })
+    .click();
+
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Machine learning" }),
+  ).toBeVisible();
+  await expect
+    .poll(() => coachActions)
+    .toEqual(["complete_rep", "start_goal", "ensure_rep"]);
+});
+
+test("goal-switch dialog preserves a failed attempt and cannot close while saving", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  const coachActions = await mockSignedInCoach(page, {
+    completeRepFails: true,
+    completeRepDelayMs: 300,
+  });
+  await page.goto("/");
+
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("Machine learning");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const dialog = page.getByRole("dialog", {
+    name: "Two minutes and it counts",
+  });
+  const attempt = dialog.getByLabel("Try it now");
+  await attempt.fill("Keep this exact attempt available for retry.");
+  await dialog
+    .getByRole("button", { name: "Save this rep, then switch" })
+    .click();
+  await expect(
+    dialog.getByRole("button", { name: "Saving…" }),
+  ).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(attempt).toHaveValue("Keep this exact attempt available for retry.");
+  await expect(
+    dialog.getByRole("alert"),
+  ).toBeVisible();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Your attempt is still here, but it was not saved. Please retry.",
+  );
+  await expect(attempt).toHaveValue("Keep this exact attempt available for retry.");
+  expect(coachActions).toEqual(["complete_rep"]);
+});
+
+test("signed in learner can archive and switch without finishing", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  const coachActions = await mockSignedInCoach(page);
+  await page.goto("/");
+
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("Machine learning");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const dialog = page.getByRole("dialog", {
+    name: "Two minutes and it counts",
+  });
+  await expect(dialog).toBeVisible();
+
+  await dialog
+    .getByRole("button", { name: /^Keep .* open$/ })
+    .click();
   await expect(dialog).not.toBeVisible();
   await expect(
     page.getByRole("button", { name: "Resume coaching" }),
@@ -424,7 +531,7 @@ test("signed in learner confirms before abandoning a pending rep", async ({
     .fill("Machine learning");
   await page.getByRole("button", { name: "Start learning" }).last().click();
   await dialog
-    .getByRole("button", { name: "Start “Machine learning”" })
+    .getByRole("button", { name: "Archive and switch anyway" })
     .click();
 
   await expect(

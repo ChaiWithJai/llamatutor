@@ -368,11 +368,11 @@ export default function Home() {
     }
   };
 
-  const submitPractice = async (attempt: string) => {
+  const submitPractice = async (attempt: string): Promise<boolean> => {
     if (!user || !goal || !rep) {
       setAuthMode("login");
       setAuthOpen(true);
-      return;
+      return false;
     }
 
     setCoachingBusy(true);
@@ -432,14 +432,26 @@ export default function Home() {
           : previous,
       );
       await loadDashboard();
+      return true;
     } catch (coachError) {
       console.error(coachError);
       setError(
         "Your attempt is still on screen, but the coaching result was not saved. Please retry.",
       );
+      return false;
     } finally {
       setCoachingBusy(false);
     }
+  };
+
+  const finishRepThenSwitch = async (attempt: string): Promise<boolean> => {
+    const saved = await submitPractice(attempt);
+    if (saved && pendingSession) {
+      const nextSession = pendingSession;
+      setPendingSession(null);
+      void beginSession(nextSession.question, nextSession.level);
+    }
+    return saved;
   };
 
   const handleAuthenticated = async (nextUser: User) => {
@@ -578,6 +590,8 @@ export default function Home() {
         currentGoal={goal}
         pendingRep={rep}
         nextTopic={pendingSession?.question ?? ""}
+        streakCount={dashboard?.profile?.streakCount ?? 0}
+        busy={coachingBusy}
         onCancel={() => setPendingSession(null)}
         onConfirm={() => {
           if (!pendingSession) return;
@@ -585,6 +599,7 @@ export default function Home() {
           setPendingSession(null);
           void beginSession(nextSession.question, nextSession.level);
         }}
+        onFinishRep={finishRepThenSwitch}
       />
       {user?.email && (
         <AccountDialog
