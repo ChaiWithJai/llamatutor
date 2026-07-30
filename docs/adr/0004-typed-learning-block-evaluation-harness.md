@@ -96,12 +96,15 @@ The release gate is a checked-in threshold file, not a subjective demo:
 
 The UI stays deterministic and testable while model capability can improve
 behind it. Enabling vision requires endpoint authority and cost approval, so
-#32 remains open until live evidence satisfies the gate.
+live evidence must satisfy the gate before vision can be enabled. The approved
+`Qwen/Qwen3.5-9B` nine-fixture run passed on 2026-07-30 at 8,442 ms p95 latency
+and $0.00022525 maximum fixture cost, with every safety and integrity gate
+passing.
 
 ## 2026-07-30 provider follow-up
 
 Together removed Maverick on 2026-03-31 and now offers current vision models
 serverlessly. The harness remains provider-neutral; its live adapter requires an
 explicit model and current per-token prices. No dedicated endpoint is required
-to collect the first measurements, and image upload remains disabled until the
-measured release gate passes.
+to collect the first measurements. Image upload remains a separate,
+feature-flagged product change even though the measured release gate passed.

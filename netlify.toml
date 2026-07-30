@@ -5,12 +5,6 @@
   NODE_VERSION = "22"
   PNPM_VERSION = "11.9.0"
 
-# One-time governance branch: collect the approved live-model report inside
-# Netlify's secret-bearing build environment. The JSON contains metadata only
-# and is generated into the preview artifact; it is never committed.
-[context."codex/issue-32-live-results"]
-  command = "pnpm eval:learning-blocks:live -- --model Qwen/Qwen3.5-9B --input-price 0.10 --output-price 0.15 --report-only --output public/learning-block-report.json && pnpm build"
-
 # Protect the two metered AI endpoints from accidental or abusive bursts.
 # Netlify applies these limits at the edge, before the Next.js handlers run.
 [[redirects]]
