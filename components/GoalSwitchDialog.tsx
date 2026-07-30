@@ -1,24 +1,32 @@
 "use client";
 
 import type { CoachingGoal, PracticeRep } from "@/utils/coaching";
-import { useEffect, useRef } from "react";
+import StreakBadge from "@/components/StreakBadge";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 export default function GoalSwitchDialog({
   open,
   currentGoal,
   pendingRep,
   nextTopic,
+  streakCount,
+  busy,
   onCancel,
   onConfirm,
+  onFinishRep,
 }: {
   open: boolean;
   currentGoal: CoachingGoal | null;
   pendingRep: PracticeRep | null;
   nextTopic: string;
+  streakCount: number;
+  busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
+  onFinishRep: (attempt: string) => Promise<boolean>;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [attempt, setAttempt] = useState("");
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -28,6 +36,24 @@ export default function GoalSwitchDialog({
 
   if (!open) return null;
 
+  const handleCancel = () => {
+    setAttempt("");
+    onCancel();
+  };
+
+  const handleConfirm = () => {
+    setAttempt("");
+    onConfirm();
+  };
+
+  const submitFinish = async (event: FormEvent) => {
+    event.preventDefault();
+    const value = attempt.trim();
+    if (!value) return;
+    const saved = await onFinishRep(value);
+    if (saved) setAttempt("");
+  };
+
   return (
     <dialog
       ref={dialogRef}
@@ -35,29 +61,67 @@ export default function GoalSwitchDialog({
       aria-labelledby="goal-switch-title"
       onCancel={(event) => {
         event.preventDefault();
-        onCancel();
+        handleCancel();
       }}
-      onClose={onCancel}
+      onClose={handleCancel}
     >
-      <p className="session-label">Switching goals</p>
-      <h2 id="goal-switch-title">Start “{nextTopic}” instead?</h2>
-      <p className="goal-switch-rep">
-        <strong>{currentGoal?.topic}</strong> has a rep waiting — “
-        {pendingRep?.prompt}”
-      </p>
+      <div className="goal-switch-heading">
+        <div>
+          <p className="session-label">Switching goals</p>
+          <h2 id="goal-switch-title">Two minutes and it counts</h2>
+        </div>
+        {streakCount > 0 && <StreakBadge count={streakCount} />}
+      </div>
       <p className="auth-dialog-copy">
-        Starting a new topic <strong>archives your current goal</strong>, not
-        deletes it. Your streak and saved reps stay put, but this unfinished rep
-        will not count unless you complete it first.
+        Your open rep on <strong>{currentGoal?.topic}</strong> is short.
+        Finish it right here and your streak lands before “{nextTopic}”
+        begins.
       </p>
-      <div className="goal-switch-actions">
-        <button className="secondary-button" type="button" onClick={onCancel}>
-          Finish this rep first
+
+      <form className="goal-switch-finish" onSubmit={submitFinish}>
+        <p className="goal-switch-rep">{pendingRep?.prompt}</p>
+        <label htmlFor="goal-switch-attempt">Try it now</label>
+        <textarea
+          id="goal-switch-attempt"
+          value={attempt}
+          maxLength={8000}
+          onChange={(event) => setAttempt(event.target.value)}
+          placeholder="Write your own explanation or example. The tutor will respond with focused feedback."
+          rows={3}
+          disabled={busy}
+          required
+        />
+        <button
+          className="primary-button goal-switch-finish-button"
+          type="submit"
+          disabled={busy || !attempt.trim()}
+        >
+          {busy ? "Saving…" : "Save this rep, then switch"}
         </button>
-        <button className="primary-button" type="button" onClick={onConfirm}>
-          Start “{nextTopic}”
+      </form>
+
+      <div className="goal-switch-actions">
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={handleCancel}
+          disabled={busy}
+        >
+          Keep {currentGoal?.topic} open
+        </button>
+        <button
+          className="primary-button"
+          type="button"
+          onClick={handleConfirm}
+          disabled={busy}
+        >
+          Archive and switch anyway
         </button>
       </div>
+      <p className="goal-switch-footnote">
+        Archiving keeps everything — streak, feedback, every completed rep. It
+        only closes the goal.
+      </p>
     </dialog>
   );
 }

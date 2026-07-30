@@ -25,7 +25,7 @@ export default function CoachPanel({
   busy: boolean;
   completion: { feedback: string; nextRep: string } | null;
   onSignIn: () => void;
-  onSubmit: (attempt: string) => Promise<void>;
+  onSubmit: (attempt: string) => Promise<boolean>;
 }) {
   const [attempt, setAttempt] = useState("");
 
