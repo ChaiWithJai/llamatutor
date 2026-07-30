@@ -25,6 +25,7 @@ const HELP = [
   "  --output-price <USD per 1M tokens>",
   "  [--endpoint <chat-completions-url>]",
   "  [--timeout-ms <milliseconds>]",
+  "  [--report-only]",
   "  [--output <absolute-or-relative-json-path>]",
 ].join(" ");
 
@@ -34,6 +35,7 @@ export type Arguments = {
   inputPrice: number;
   outputPrice: number;
   timeoutMs: number;
+  reportOnly: boolean;
   outputPath?: string;
 };
 
@@ -111,6 +113,7 @@ export function parseArguments(args: string[]): Arguments {
       optionalValue(args, "--timeout-ms") ?? "60000",
       "--timeout-ms",
     ),
+    reportOnly: args.includes("--report-only"),
     outputPath: optionalValue(args, "--output"),
   };
 }
@@ -597,7 +600,7 @@ async function main() {
     await writeFile(outputPath, serialized, { encoding: "utf8", mode: 0o600 });
     process.stderr.write(`Wrote ${outputPath}\n`);
   }
-  process.exitCode = report.passed ? 0 : 1;
+  process.exitCode = report.passed || args.reportOnly ? 0 : 1;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

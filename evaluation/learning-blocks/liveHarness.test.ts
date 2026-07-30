@@ -11,6 +11,7 @@ const runnerArguments: Arguments = {
   inputPrice: 1,
   outputPrice: 2,
   timeoutMs: 2_000,
+  reportOnly: false,
 };
 
 function streamedResponse(
@@ -79,6 +80,7 @@ describe("live learning-block harness", () => {
       model: "vision-model",
       inputPrice: 0.1,
       outputPrice: 0.15,
+      reportOnly: false,
     });
   });
 

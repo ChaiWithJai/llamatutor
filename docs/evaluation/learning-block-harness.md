@@ -67,9 +67,9 @@ TOGETHER_API_KEY=... pnpm eval:learning-blocks:live -- \
   --output /tmp/llamatutor-learning-block-report.json
 ```
 
-The command deliberately exits non-zero while latency or cost thresholds remain
-unapproved, even if the provider calls succeed. Attach the JSON from `/tmp` to
-issue #32; do not commit it.
+The product owner approved `Qwen/Qwen3.5-9B`, p95 total latency of 12 seconds,
+and a maximum measured cost of $0.002 per fixture on 2026-07-30. Attach the JSON
+from `/tmp` to issue #32; do not commit it.
 
 The live path verifies:
 
@@ -124,10 +124,9 @@ silently shrinking the denominator.
 - zero unknown source IDs;
 - truthful fallback for every cancellation or provider error.
 
-Latency and cost are intentionally `null`. The live gate cannot pass until the
-product owner approves explicit `p95LatencyMs` and `maxCostUsd` values for the
-selected current model. This prevents a successful demo from silently becoming
-production policy.
+The product owner-approved latency and cost thresholds are checked in alongside
+the quality and safety thresholds. A successful demo cannot silently become
+production policy without satisfying all of them.
 
 After model and threshold approval:
 

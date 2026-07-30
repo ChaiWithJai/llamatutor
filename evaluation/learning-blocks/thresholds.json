@@ -5,6 +5,6 @@
   "maxRawHtmlBlocks": 0,
   "maxMissingSourceIds": 0,
   "truthfulFailureRate": 1,
-  "p95LatencyMs": null,
-  "maxCostUsd": null
+  "p95LatencyMs": 12000,
+  "maxCostUsd": 0.002
 }

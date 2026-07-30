@@ -108,11 +108,12 @@ describe("typed learning blocks", () => {
     );
   });
 
-  it("cannot pass the live release gate without accepted latency and cost budgets", () => {
+  it("cannot pass the live release gate without complete live evidence", () => {
     const report = evaluateSuite(goldenLearningBlockFixtures, thresholds);
 
     expect(report.passed).toBe(false);
-    expect(report.decisionsNeeded).toEqual(["p95LatencyMs", "maxCostUsd"]);
+    expect(report.decisionsNeeded).toEqual([]);
+    expect(report.metrics.missingLiveFixtureIds).toHaveLength(9);
     expect(report.metrics.validTopLevelSchemaRate).toBe(5 / 7);
     expect(report.metrics.rawHtmlBlocks).toBe(1);
     expect(report.metrics.truthfulFailureRate).toBe(1);
