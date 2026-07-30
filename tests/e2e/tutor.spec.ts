@@ -48,7 +48,10 @@ async function mockTutor(
   });
 }
 
-async function mockSignedInCoach(page: Page) {
+async function mockSignedInCoach(
+  page: Page,
+  { repPrompt }: { repPrompt?: string } = {},
+) {
   const encode = (value: object) =>
     Buffer.from(JSON.stringify(value)).toString("base64url");
   const token = `${encode({ alg: "none", typ: "JWT" })}.${encode({
@@ -94,7 +97,7 @@ async function mockSignedInCoach(page: Page) {
   const firstRep: PracticeRep = {
     id: "22222222-2222-4222-8222-222222222222",
     goalId: goal.id,
-    prompt: "Explain compound interest and give one example.",
+    prompt: repPrompt ?? "Explain compound interest and give one example.",
     attempt: null,
     feedback: null,
     status: "pending",
@@ -357,6 +360,34 @@ test("signed in learner completes a rep and resumes the saved next rep", async (
   await expect(
     page.getByText(/Apply How does compound interest work\? to a new example/),
   ).toBeVisible();
+});
+
+test("coach panel scroll cue appears only while content remains below", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  await mockSignedInCoach(page, {
+    repPrompt: Array.from(
+      { length: 18 },
+      () => "Explain one concrete step and the evidence that supports it.",
+    ).join(" "),
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Resume coaching" }).click();
+
+  const coachPanel = page.locator(".coach-panel");
+  const scrollCue = coachPanel.locator(".coach-panel-scroll-cue");
+  const metrics = await coachPanel.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+  await expect(scrollCue).toHaveAttribute("data-visible", "true");
+
+  await coachPanel.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(scrollCue).toHaveAttribute("data-visible", "false");
 });
 
 test("signed in learner confirms before abandoning a pending rep", async ({

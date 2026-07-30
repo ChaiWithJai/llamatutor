@@ -3,6 +3,7 @@
 import type { CoachingGoal, PracticeRep } from "@/utils/coaching";
 import NextRepCard from "@/components/NextRepCard";
 import ProgressTrail from "@/components/ProgressTrail";
+import ScrollCue from "@/components/ScrollCue";
 import StreakBadge from "@/components/StreakBadge";
 import { FormEvent, useState } from "react";
 
@@ -73,7 +74,7 @@ export default function CoachPanel({
           </small>
         </div>
         {goal && <ProgressTrail goal={goal} recentReps={recentReps} />}
-        <div className="coach-panel-scroll-cue" aria-hidden="true" />
+        <ScrollCue />
       </section>
     );
   }
@@ -116,7 +117,7 @@ export default function CoachPanel({
           {busy ? "Coaching…" : "Get feedback and save my next rep"}
         </button>
       </form>
-      <div className="coach-panel-scroll-cue" aria-hidden="true" />
+      <ScrollCue />
     </section>
   );
 }
