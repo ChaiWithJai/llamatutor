@@ -1,9 +1,9 @@
 "use client";
 
-import ReactMarkdown from "react-markdown";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { chunkIntoCards } from "@/utils/carousel";
 import DrilldownPanel from "@/components/DrilldownPanel";
+import TutorMarkdown from "@/components/TutorMarkdown";
 
 function hostnameOf(url: string): string {
   try {
@@ -17,13 +17,16 @@ export default function CardCarousel({
   content,
   sources,
   signedIn,
+  onInspectSource,
 }: {
   content: string;
   sources: { name: string; url: string }[];
   signedIn: boolean;
+  onInspectSource?: (sourceUrl: string) => void;
 }) {
   const cards = useMemo(() => chunkIntoCards(content, sources), [content, sources]);
   const [index, setIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
 
   if (cards.length === 0) return null;
 
@@ -43,31 +46,67 @@ export default function CardCarousel({
         if (event.key === "ArrowRight") goTo(clampedIndex + 1);
         if (event.key === "ArrowLeft") goTo(clampedIndex - 1);
       }}
+      onTouchStart={(event) => {
+        touchStartX.current = event.touches[0]?.clientX ?? null;
+      }}
+      onTouchEnd={(event) => {
+        const start = touchStartX.current;
+        const end = event.changedTouches[0]?.clientX;
+        touchStartX.current = null;
+        if (start === null || end === undefined || Math.abs(start - end) < 48) {
+          return;
+        }
+        goTo(start > end ? clampedIndex + 1 : clampedIndex - 1);
+      }}
     >
-      {cards.length > 1 && (
-        <span className="card-count-pill" aria-hidden="true">
-          {clampedIndex + 1} / {cards.length}
-        </span>
-      )}
       <div className="card-viewport">
         <article className="carousel-card" aria-label={`Card ${clampedIndex + 1} of ${cards.length}`}>
-          <p className="card-eyebrow">
-            Card {clampedIndex + 1} · {card.title}
-          </p>
+          <header className="card-heading">
+            <div>
+              <p className="card-eyebrow">
+                Learning card {clampedIndex + 1} of {cards.length}
+              </p>
+              <h2>{card.title}</h2>
+            </div>
+            {cards.length > 1 && (
+              <div className="carousel-stepper" aria-label="Card navigation">
+                <button
+                  type="button"
+                  onClick={() => goTo(clampedIndex - 1)}
+                  disabled={clampedIndex === 0}
+                  aria-label="Previous card"
+                >
+                  ←
+                </button>
+                <span aria-live="polite">
+                  {clampedIndex + 1} / {cards.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => goTo(clampedIndex + 1)}
+                  disabled={clampedIndex === cards.length - 1}
+                  aria-label="Next card"
+                >
+                  →
+                </button>
+              </div>
+            )}
+          </header>
           <div className="card-body">
-            <ReactMarkdown>{card.body}</ReactMarkdown>
+            <TutorMarkdown>{card.body}</TutorMarkdown>
             <div className="card-body-scroll-cue" aria-hidden="true" />
           </div>
           <div className="card-footer">
             {card.sourceName && card.sourceUrl ? (
-              <a
+              <button
                 className="card-source-chip"
-                href={card.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
+                type="button"
+                onClick={() => onInspectSource?.(card.sourceUrl!)}
+                aria-label={`Inspect source: ${card.sourceName}`}
               >
+                <span aria-hidden="true">↗</span>
                 {hostnameOf(card.sourceUrl)}
-              </a>
+              </button>
             ) : (
               <span className="card-source-chip card-source-chip-empty">unverified</span>
             )}
@@ -78,16 +117,6 @@ export default function CardCarousel({
             />
           </div>
         </article>
-        {cards.length > 1 && clampedIndex < cards.length - 1 && (
-          <button
-            className="carousel-arrow carousel-arrow-next"
-            type="button"
-            onClick={() => goTo(clampedIndex + 1)}
-            aria-label="Next card"
-          >
-            →
-          </button>
-        )}
       </div>
       {cards.length > 1 && (
         <div className="carousel-dots" role="tablist" aria-label="Cards">

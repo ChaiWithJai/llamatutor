@@ -1,4 +1,4 @@
-import { FC, KeyboardEvent } from "react";
+import { FC, KeyboardEvent, useEffect, useState } from "react";
 import TypeAnimation from "./TypeAnimation";
 
 type TInputAreaProps = {
@@ -10,7 +10,21 @@ type TInputAreaProps = {
     React.SetStateAction<{ role: string; content: string }[]>
   >;
   handleChat: (messages?: { role: string; content: string }[]) => void;
+  signedIn: boolean;
+  nextRep?: string;
+  onJourneyEvent?: (
+    action: "impression" | "selected" | "edited" | "submitted",
+    move: string,
+  ) => void;
 };
+
+const universalMoves = [
+  { id: "intuition", label: "Build intuition", prompt: "Explain this another way with a simple analogy." },
+  { id: "example", label: "Work an example", prompt: "Walk me through one concrete example step by step." },
+  { id: "check", label: "Check understanding", prompt: "Ask me one short question to check my understanding." },
+  { id: "practice", label: "Try a rep", prompt: "Give me one useful practice rep I can do now." },
+  { id: "evidence", label: "Inspect evidence", prompt: "Which source best supports the key claim, and why?" },
+];
 
 const FinalInputArea: FC<TInputAreaProps> = ({
   promptValue,
@@ -19,7 +33,21 @@ const FinalInputArea: FC<TInputAreaProps> = ({
   messages,
   setMessages,
   handleChat,
+  signedIn,
+  nextRep,
+  onJourneyEvent,
 }) => {
+  const [selectedMove, setSelectedMove] = useState<string | null>(null);
+  const [reportedEdit, setReportedEdit] = useState(false);
+  const moves =
+    signedIn && nextRep
+      ? [{ id: "continue", label: "Continue your rep", prompt: nextRep }, ...universalMoves]
+      : universalMoves;
+
+  useEffect(() => {
+    onJourneyEvent?.("impression", "journey-rail");
+  }, [onJourneyEvent]);
+
   const onSubmit = () => {
     if (!promptValue.trim()) return;
     const latestMessages = [
@@ -28,6 +56,9 @@ const FinalInputArea: FC<TInputAreaProps> = ({
     ];
     setPromptValue("");
     setMessages(latestMessages);
+    if (selectedMove) onJourneyEvent?.("submitted", selectedMove);
+    setSelectedMove(null);
+    setReportedEdit(false);
     handleChat(latestMessages);
   };
 
@@ -45,9 +76,32 @@ const FinalInputArea: FC<TInputAreaProps> = ({
         onSubmit();
       }}
     >
-      <label className="prompt-label" htmlFor="follow-up">
-        Ask a follow-up
-      </label>
+      <div className="journey-rail-wrap">
+        <div className="journey-rail-heading">
+          <span className="prompt-label">Choose your next move</span>
+          <span>Swipe or use Tab</span>
+        </div>
+        <div className="journey-rail" role="group" aria-label="Learning journeys">
+          {moves.map((move) => (
+            <button
+              key={move.id}
+              className={selectedMove === move.id ? "journey-move journey-move-active" : "journey-move"}
+              type="button"
+              aria-pressed={selectedMove === move.id}
+              onClick={() => {
+                setSelectedMove(move.id);
+                setReportedEdit(false);
+                setPromptValue(move.prompt);
+                onJourneyEvent?.("selected", move.id);
+              }}
+            >
+              {move.label}
+              <span aria-hidden="true">→</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="prompt-label" htmlFor="follow-up">Ask a follow-up</label>
       <div className="prompt-row">
         <textarea
           id="follow-up"
@@ -56,7 +110,13 @@ const FinalInputArea: FC<TInputAreaProps> = ({
           value={promptValue}
           onKeyDown={handleKeyDown}
           required
-          onChange={(event) => setPromptValue(event.target.value)}
+          onChange={(event) => {
+            setPromptValue(event.target.value);
+            if (selectedMove && !reportedEdit) {
+              setReportedEdit(true);
+              onJourneyEvent?.("edited", selectedMove);
+            }
+          }}
           rows={1}
         />
         <button

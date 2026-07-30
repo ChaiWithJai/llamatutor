@@ -15,7 +15,8 @@
     "test:unit": "vitest run",
     "test:integration": "node scripts/test-database-integration.mjs",
     "test:e2e": "playwright test",
-    "check": "pnpm lint && pnpm test:unit && pnpm build"
+    "check": "pnpm lint && pnpm test:unit && pnpm build",
+    "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",
@@ -35,6 +36,7 @@
     "react-dom": "^18",
     "react-hot-toast": "^2.4.1",
     "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.1",
     "zod": "^4.1.13"
   },
   "devDependencies": {

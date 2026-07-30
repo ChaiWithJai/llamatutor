@@ -1,6 +1,6 @@
-import ReactMarkdown from "react-markdown";
 import FinalInputArea from "./FinalInputArea";
 import CardCarousel from "./CardCarousel";
+import TutorMarkdown from "./TutorMarkdown";
 import { ReactNode, useEffect, useRef, useState } from "react";
 
 export default function Chat({
@@ -14,6 +14,9 @@ export default function Chat({
   coachSlot,
   sources = [],
   signedIn = false,
+  nextRep,
+  onInspectSource,
+  onJourneyEvent,
 }: {
   messages: { role: string; content: string }[];
   disabled: boolean;
@@ -28,16 +31,39 @@ export default function Chat({
   coachSlot?: ReactNode;
   sources?: { name: string; url: string }[];
   signedIn?: boolean;
+  nextRep?: string;
+  onInspectSource?: (sourceUrl: string) => void;
+  onJourneyEvent?: (
+    action: "impression" | "selected" | "edited" | "submitted",
+    move: string,
+  ) => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const latestAssistantRef = useRef<HTMLDivElement>(null);
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
+  const wasLoadingRef = useRef(false);
   const [didScrollToBottom, setDidScrollToBottom] = useState(true);
 
   useEffect(() => {
-    if (loading || didScrollToBottom) {
+    if (loading && didScrollToBottom) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [didScrollToBottom, messages, loading]);
+
+  useEffect(() => {
+    if (wasLoadingRef.current && !loading) {
+      window.requestAnimationFrame(() => {
+        latestAssistantRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        latestAssistantRef.current
+          ?.querySelector<HTMLElement>(".card-body")
+          ?.scrollTo({ top: 0 });
+      });
+    }
+    wasLoadingRef.current = loading;
+  }, [loading]);
 
   useEffect(() => {
     const element = scrollableContainerRef.current;
@@ -77,19 +103,28 @@ export default function Chat({
               // live markdown so the learner still sees real-time feedback.
               const isStreamingThisMessage =
                 loading && index === assistantMessages.length - 1;
+              const isLatestAssistant =
+                index === assistantMessages.length - 1;
 
               return (
-                <div className="assistant-message" key={index}>
+                <div
+                  className="assistant-message"
+                  key={index}
+                  ref={isLatestAssistant ? latestAssistantRef : undefined}
+                >
                   <span className="assistant-mark" aria-hidden="true">
                     D
                   </span>
                   {isStreamingThisMessage ? (
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <div className="tutor-markdown">
+                      <TutorMarkdown>{message.content}</TutorMarkdown>
+                    </div>
                   ) : (
                     <CardCarousel
                       content={message.content}
                       sources={sources}
                       signedIn={signedIn}
+                      onInspectSource={onInspectSource}
                     />
                   )}
                 </div>
@@ -123,6 +158,9 @@ export default function Chat({
           handleChat={handleChat}
           messages={messages}
           setMessages={setMessages}
+          signedIn={signedIn}
+          nextRep={nextRep}
+          onJourneyEvent={onJourneyEvent}
         />
       </div>
     </section>
