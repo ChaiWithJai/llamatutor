@@ -1,6 +1,6 @@
-# ADR 0003: Dual-model routing — Qwen2.5-7B for text, Llama 4 Maverick for multimodal
+# ADR 0003: Qwen2.5-7B for text, configurable dedicated model for images
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-07-30
 - Related: #11 (migration issue), #4 (design-to-life spec), #9 (ADR — Option B, Netlify Identity/Database)
 
@@ -29,9 +29,9 @@ Sources: [Together AI — Llama 4 Maverick](https://www.together.ai/models/llama
 Route per request based on message content, not a single hardcoded model:
 
 - **Text-only messages → `Qwen/Qwen2.5-7B-Instruct-Turbo`.** This is the default and covers the free explainer path (`app/api/getChat/route.ts`) for the overwhelming majority of anonymous traffic — cheapest output cost, adequate quality for topic explanations.
-- **Any message containing an `image_url` content block → `meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8`.** This is a capability requirement, not a cost optimization — Qwen cannot process images at all. Maverick becomes load-bearing exactly where the coaching loop's "learner attempt" step (per ADR #9's session contract) needs to accept a photo of handwritten work, a diagram, or a whiteboard, once that UI ships (tracked separately, not in this ADR's scope).
+- **Any message containing an `image_url` content block → the model named by `TOGETHER_MULTIMODAL_MODEL`.** This is a capability requirement, not a cost optimization — Qwen cannot process images at all. Until a dedicated endpoint is provisioned and configured, the route returns a clear `503` instead of forwarding the request to a model known to be unavailable.
 
-Implementation: `utils/TogetherAIStream.ts` exports `selectChatModel(messages)`, which inspects the message array for any `image_url` block and returns the appropriate model string. `ChatGPTMessage.content` is widened from `string` to `string | ChatGPTContentBlock[]` to allow multimodal payloads without breaking any existing text-only call site.
+Implementation: `utils/TogetherAIStream.ts` exports `selectChatModel(messages, multimodalModel)`, which inspects the message array for any `image_url` block and returns the text model, the configured image model, or `null` when image capability is unavailable. `ChatGPTMessage.content` is widened from `string` to `string | ChatGPTContentBlock[]` to allow multimodal payloads without breaking any existing text-only call site.
 
 ## Critical constraint discovered during implementation (2026-07-30)
 
@@ -44,8 +44,8 @@ This is not specific to Maverick. Every vision-capable model tested returned the
 **Practical consequence: there is no serverless multimodal model available on this Together AI account today.** Getting real image input working requires provisioning a dedicated endpoint through the Together AI dashboard for a chosen vision model — which has an hourly cost and manual setup step, not a config change. That is a cost/ops decision for the team, not something to silently enable before tomorrow's webinar demo.
 
 **What this ADR still delivers today, and what it doesn't:**
-- `selectChatModel()` and the widened `ChatGPTMessage` content type ship as working, tested scaffolding — they're correct and harmless, since nothing in the product currently constructs an `image_url` content block (no image-upload UI exists yet, per #11's step 3).
-- The multimodal branch of `selectChatModel()` is **not verified against a live model call** and will currently fail with the same `model_not_available` error if ever exercised, until a dedicated endpoint is provisioned and the target model string is updated to match.
+- `selectChatModel()` and the widened `ChatGPTMessage` content type ship as working, tested scaffolding. Direct API callers cannot accidentally trigger a known-broken model call: image input receives a truthful `503` while `TOGETHER_MULTIMODAL_MODEL` is unset.
+- The multimodal branch is **not verified against a live model call**. It remains disabled until a dedicated endpoint is provisioned and its model identifier is set in `TOGETHER_MULTIMODAL_MODEL`.
 - The free explainer path (`getChat`, text-only, the only path currently reachable) is unaffected — it still routes to `Qwen/Qwen2.5-7B-Instruct-Turbo`, verified working.
 
 ## Consequences
@@ -53,13 +53,13 @@ This is not specific to Maverick. Every vision-capable model tested returned the
 ### Positive
 
 - Free explainer traffic (the largest volume, least differentiated use case) keeps the cheaper per-output-token model — no cost regression on the path that matters most for aggregate spend.
-- Multimodal capability is available the moment an image-upload UI ships, with no further backend changes — the routing function already handles it.
-- Closes the branding gap: the app now actually calls a Llama model, conditionally, for the case where it's the only model that can do the job.
+- Multimodal routing is ready for an image-upload UI once a working dedicated endpoint is configured.
+- Makes the branding/capability gap explicit: production remains Qwen-only until a working vision endpoint is configured, and image requests fail truthfully in the meantime.
 - No new infrastructure, no new provider — same `TOGETHER_API_KEY`, same streaming pipeline.
 
 ### Negative
 
-- Two models in production means two things to monitor for quality/latency/error-rate drift instead of one.
+- Once vision is enabled, two models in production will mean two things to monitor for quality/latency/error-rate drift instead of one.
 - The routing function only inspects message content shape today — it doesn't yet account for an authenticated-vs-anonymous distinction (e.g., a signed-in coaching user asking a text-only follow-up still gets Qwen). That's an intentional simplification for this first pass, not an oversight — routing on content type is the only distinction that's a hard capability requirement (Qwen literally cannot see images); routing on auth state is a policy choice that can be layered on later if the coaching path wants higher-quality text responses regardless of images.
 - `selectChatModel` needs a corresponding unit test kept in sync if a third model is ever added to the routing table.
 

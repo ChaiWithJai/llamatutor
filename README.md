@@ -172,6 +172,7 @@ Open `http://localhost:3000`. Account persistence and coaching data will not wor
 | Variable | Needed | Purpose |
 | --- | --- | --- |
 | `TOGETHER_API_KEY` | Yes | Streams lesson and coaching responses from Together AI |
+| `TOGETHER_MULTIMODAL_MODEL` | After provisioning vision | Model or dedicated endpoint configured for image requests |
 | `EXA_API_KEY` | Yes | Finds source pages for each topic |
 | `HELICONE_API_KEY` | No | Sends model requests through Helicone for tracing |
 | `UPSTASH_REDIS_REST_URL` | Public deployments | Stores request limit state |

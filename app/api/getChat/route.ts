@@ -23,6 +23,24 @@ if (process.env.UPSTASH_REDIS_REST_URL) {
 export async function POST(request: NextRequest) {
   let { messages } = await request.json();
 
+  if (!Array.isArray(messages)) {
+    return Response.json({ error: "Messages are required." }, { status: 400 });
+  }
+
+  const model = selectChatModel(
+    messages,
+    process.env.TOGETHER_MULTIMODAL_MODEL,
+  );
+  if (!model) {
+    return Response.json(
+      {
+        error:
+          "Image tutoring is not configured yet. Send a text-only question for now.",
+      },
+      { status: 503 },
+    );
+  }
+
   if (ratelimit) {
     const identifier = getIPAddress(request);
 
@@ -36,7 +54,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload: TogetherAIStreamPayload = {
-      model: selectChatModel(messages),
+      model,
       messages,
       stream: true,
     };

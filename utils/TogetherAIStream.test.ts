@@ -22,7 +22,7 @@ describe("selectChatModel", () => {
     ).toBe("Qwen/Qwen2.5-7B-Instruct-Turbo");
   });
 
-  it("routes to the multimodal model when any message includes an image", () => {
+  it("requires an explicitly configured model when a message includes an image", () => {
     expect(
       selectChatModel([
         { role: "system", content: "You are a tutor." },
@@ -37,23 +37,26 @@ describe("selectChatModel", () => {
           ],
         },
       ]),
-    ).toBe("meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8");
+    ).toBeNull();
   });
 
-  it("routes to the multimodal model even if the image is in an earlier message", () => {
+  it("routes image history to the configured multimodal model", () => {
     expect(
-      selectChatModel([
-        {
-          role: "user",
-          content: [
-            {
-              type: "image_url",
-              image_url: { url: "https://example.com/first.jpg" },
-            },
-          ],
-        },
-        { role: "user", content: "Follow-up question, no image this time." },
-      ]),
-    ).toBe("meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8");
+      selectChatModel(
+        [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: { url: "https://example.com/first.jpg" },
+              },
+            ],
+          },
+          { role: "user", content: "Follow-up question, no image this time." },
+        ],
+        "dedicated-endpoint-model",
+      ),
+    ).toBe("dedicated-endpoint-model");
   });
 });
