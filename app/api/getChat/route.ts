@@ -1,6 +1,7 @@
 import {
   TogetherAIStream,
   TogetherAIStreamPayload,
+  selectChatModel,
 } from "@/utils/TogetherAIStream";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload: TogetherAIStreamPayload = {
-      model: "Qwen/Qwen2.5-7B-Instruct-Turbo",
+      model: selectChatModel(messages),
       messages,
       stream: true,
     };

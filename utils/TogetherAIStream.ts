@@ -6,15 +6,37 @@ import {
 
 export type ChatGPTAgent = "user" | "system";
 
+export type ChatGPTContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 export interface ChatGPTMessage {
   role: ChatGPTAgent;
-  content: string;
+  content: string | ChatGPTContentBlock[];
 }
 
 export interface TogetherAIStreamPayload {
   model: string;
   messages: ChatGPTMessage[];
   stream: boolean;
+}
+
+// Qwen2.5-7B-Instruct-Turbo is text-only and cheaper on output tokens
+// ($0.30/1M in, $0.30/1M out vs Maverick's $0.27/1M in, $0.85/1M out on
+// Together AI as of 2026-07-30) -- it stays the default for the free,
+// high-volume, text-only explainer path. Llama 4 Maverick is natively
+// multimodal, so any message carrying an image_url block must route there;
+// Qwen has no way to see the image at all. See docs/adr/0003-dual-model-routing.md.
+const TEXT_MODEL = "Qwen/Qwen2.5-7B-Instruct-Turbo";
+const MULTIMODAL_MODEL = "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8";
+
+export function selectChatModel(messages: ChatGPTMessage[]): string {
+  const hasImage = messages.some(
+    (message) =>
+      Array.isArray(message.content) &&
+      message.content.some((block) => block.type === "image_url"),
+  );
+  return hasImage ? MULTIMODAL_MODEL : TEXT_MODEL;
 }
 
 // const together = new Together({
