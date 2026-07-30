@@ -41,10 +41,19 @@ export default function CoachPanel({
   if (!signedIn) {
     return (
       <section className="coach-panel coach-panel-invite">
-        <p className="session-label">Turn learning into practice</p>
-        <strong>Save a goal, do one useful rep, and return to the next.</strong>
+        <span
+          className="coach-loop-mark"
+          role="img"
+          aria-label="Learn, practice, get feedback, and continue"
+        >
+          <span />
+          <span />
+          <span />
+          <span />
+        </span>
+        <strong>Keep a goal and return to your next rep.</strong>
         <button className="secondary-button" type="button" onClick={onSignIn}>
-          Sign in to start coaching
+          Sign in to continue
         </button>
       </section>
     );

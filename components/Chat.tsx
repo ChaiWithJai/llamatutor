@@ -1,5 +1,6 @@
-import ReactMarkdown from "react-markdown";
 import FinalInputArea from "./FinalInputArea";
+import CardCarousel from "./CardCarousel";
+import TutorMarkdown from "./TutorMarkdown";
 import { ReactNode, useEffect, useRef, useState } from "react";
 
 export default function Chat({
@@ -11,6 +12,11 @@ export default function Chat({
   setMessages,
   handleChat,
   coachSlot,
+  sources = [],
+  signedIn = false,
+  nextRep,
+  onInspectSource,
+  onJourneyEvent,
 }: {
   messages: { role: string; content: string }[];
   disabled: boolean;
@@ -23,16 +29,41 @@ export default function Chat({
   handleChat: (messages?: { role: string; content: string }[]) => void;
   topic: string;
   coachSlot?: ReactNode;
+  sources?: { name: string; url: string }[];
+  signedIn?: boolean;
+  nextRep?: string;
+  onInspectSource?: (sourceUrl: string) => void;
+  onJourneyEvent?: (
+    action: "impression" | "selected" | "edited" | "submitted",
+    move: string,
+  ) => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const latestAssistantRef = useRef<HTMLDivElement>(null);
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
+  const wasLoadingRef = useRef(false);
   const [didScrollToBottom, setDidScrollToBottom] = useState(true);
 
   useEffect(() => {
-    if (loading || didScrollToBottom) {
+    if (loading && didScrollToBottom) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [didScrollToBottom, messages, loading]);
+
+  useEffect(() => {
+    if (wasLoadingRef.current && !loading) {
+      window.requestAnimationFrame(() => {
+        latestAssistantRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        latestAssistantRef.current
+          ?.querySelector<HTMLElement>(".card-body")
+          ?.scrollTo({ top: 0 });
+      });
+    }
+    wasLoadingRef.current = loading;
+  }, [loading]);
 
   useEffect(() => {
     const element = scrollableContainerRef.current;
@@ -57,20 +88,48 @@ export default function Chat({
       >
         {messages.length > 2 ? (
           <div className="prose max-w-none">
-            {messages.slice(2).map((message, index) =>
-              message.role === "assistant" ? (
-                <div className="assistant-message" key={index}>
+            {messages.slice(2).map((message, index, assistantMessages) => {
+              if (message.role !== "assistant") {
+                return (
+                  <p key={index} className="user-message">
+                    {message.content}
+                  </p>
+                );
+              }
+
+              // Cards are only bounded once a response finishes streaming --
+              // chunking a growing partial string would reshuffle cards on
+              // every token. The still-streaming message keeps the original
+              // live markdown so the learner still sees real-time feedback.
+              const isStreamingThisMessage =
+                loading && index === assistantMessages.length - 1;
+              const isLatestAssistant =
+                index === assistantMessages.length - 1;
+
+              return (
+                <div
+                  className="assistant-message"
+                  key={index}
+                  ref={isLatestAssistant ? latestAssistantRef : undefined}
+                >
                   <span className="assistant-mark" aria-hidden="true">
                     D
                   </span>
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                  {isStreamingThisMessage ? (
+                    <div className="tutor-markdown">
+                      <TutorMarkdown>{message.content}</TutorMarkdown>
+                    </div>
+                  ) : (
+                    <CardCarousel
+                      content={message.content}
+                      sources={sources}
+                      signedIn={signedIn}
+                      onInspectSource={onInspectSource}
+                    />
+                  )}
                 </div>
-              ) : (
-                <p key={index} className="user-message">
-                  {message.content}
-                </p>
-              ),
-            )}
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
         ) : (
@@ -99,6 +158,9 @@ export default function Chat({
           handleChat={handleChat}
           messages={messages}
           setMessages={setMessages}
+          signedIn={signedIn}
+          nextRep={nextRep}
+          onJourneyEvent={onJourneyEvent}
         />
       </div>
     </section>

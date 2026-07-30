@@ -42,6 +42,7 @@ type Source = { name: string; url: string; content: string };
 export default function Home() {
   const plausible = usePlausible<{
     session_completed: { streak: number; grounded: boolean };
+    journey_move: { action: string; move: string };
   }>();
   const [inputValue, setInputValue] = useState("");
   const [topic, setTopic] = useState("");
@@ -54,6 +55,8 @@ export default function Home() {
   const [error, setError] = useState("");
   const [sourceWarning, setSourceWarning] = useState("");
   const [grounded, setGrounded] = useState(true);
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const [activeSourceUrl, setActiveSourceUrl] = useState<string | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
@@ -73,6 +76,12 @@ export default function Home() {
     question: string;
     level: string;
   } | null>(null);
+
+  const trackJourneyEvent = useCallback(
+    (action: string, move: string) =>
+      plausible("journey_move", { props: { action, move } }),
+    [plausible],
+  );
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -497,6 +506,20 @@ export default function Home() {
                 </p>
                 <h1 className="session-topic">{topic}</h1>
               </div>
+              <button
+                className="sources-disclosure"
+                type="button"
+                aria-expanded={sourcesExpanded}
+                aria-controls="session-sources"
+                onClick={() => setSourcesExpanded((open) => !open)}
+              >
+                <span aria-hidden="true">◎</span>
+                {isLoadingSources
+                  ? "Finding sources"
+                  : sources.length
+                    ? `${sources.length} sources`
+                    : "Sources unavailable"}
+              </button>
             </div>
             {(error || sourceWarning) && (
               <div className="session-alerts">
@@ -538,6 +561,14 @@ export default function Home() {
                 setMessages={setMessages}
                 handleChat={(nextMessages) => void handleChat(nextMessages)}
                 topic={topic}
+                sources={sources}
+                signedIn={Boolean(user)}
+                nextRep={rep?.prompt}
+                onInspectSource={(sourceUrl) => {
+                  setActiveSourceUrl(sourceUrl);
+                  setSourcesExpanded(true);
+                }}
+                onJourneyEvent={trackJourneyEvent}
                 coachSlot={
                   <CoachPanel
                     signedIn={Boolean(user)}
@@ -559,6 +590,9 @@ export default function Home() {
                 sources={sources}
                 isLoading={isLoadingSources}
                 onRetry={() => void retrySources()}
+                expanded={sourcesExpanded}
+                onClose={() => setSourcesExpanded(false)}
+                activeSourceUrl={activeSourceUrl}
               />
             </div>
           </div>

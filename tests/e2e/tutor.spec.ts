@@ -222,14 +222,24 @@ test("public learner completes the sourced lesson journey", async ({
     .fill("How do neural networks learn?");
   await page.getByRole("button", { name: "Start learning" }).last().click();
 
-  await expect(page.getByText("A named learning source")).toBeVisible();
+  await expect(page.getByRole("button", { name: "9 sources" })).toBeVisible();
   await expect(
     page.getByText(
       "A neural network learns by adjusting small numeric weights.",
     ),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Inspect source: A named learning source" })
+    .click();
   await expect(
-    page.getByRole("button", { name: "Sign in to start coaching" }),
+    page.getByRole("heading", { name: "Named sources" }),
+  ).toBeVisible();
+  await expect(page.getByText("A named learning source")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Close sources and return to lesson" })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Sign in to continue" }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "New topic" })).toBeVisible();
 });
@@ -343,6 +353,9 @@ test("long sessions keep the composer reachable", async ({ page }) => {
   await page.getByLabel("What do you want to understand?").fill("A long topic");
   await page.getByRole("button", { name: "Start learning" }).last().click();
   await expect(page.getByLabel("Ask a follow-up")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Paragraph 1: useful explanation." }),
+  ).toBeVisible();
 
   const composer = await page.getByLabel("Ask a follow-up").boundingBox();
   const viewport = page.viewportSize();
@@ -353,7 +366,9 @@ test("long sessions keep the composer reachable", async ({ page }) => {
   ).toBeLessThanOrEqual(viewport?.height ?? 0);
 });
 
-test("narrow source strip exposes horizontal overflow", async ({ page }) => {
+test("source drawer preserves the lesson and exposes overflow wayfinding", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockTutor(page);
   await page.goto("/");
@@ -361,22 +376,25 @@ test("narrow source strip exposes horizontal overflow", async ({ page }) => {
     .getByLabel("What do you want to understand?")
     .fill("Mobile learning");
   await page.getByRole("button", { name: "Start learning" }).last().click();
+  const chatWidthBefore = (await page.locator(".chat-panel").boundingBox())?.width;
+  await page.getByRole("button", { name: "9 sources" }).click();
   await expect(page.getByText("A named learning source")).toBeVisible();
 
   const overflow = await page.locator(".sources-list").evaluate((element) => ({
-    scrollWidth: element.scrollWidth,
-    clientWidth: element.clientWidth,
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
   }));
-  expect(overflow.scrollWidth).toBeGreaterThan(overflow.clientWidth);
+  expect(overflow.scrollHeight).toBeGreaterThan(overflow.clientHeight);
+  await expect(page.locator(".sources-scroll-cue")).toHaveAttribute(
+    "data-visible",
+    "true",
+  );
 
-  const affordance = await page
-    .locator(".sources-scroll-wrap")
-    .evaluate((element) => {
-      const style = window.getComputedStyle(element, "::after");
-      return { content: style.content, width: Number.parseFloat(style.width) };
-    });
-  expect(affordance.content).not.toBe("none");
-  expect(affordance.width).toBeGreaterThan(0);
+  await page
+    .getByRole("button", { name: "Close sources and return to lesson" })
+    .click();
+  const chatWidthAfter = (await page.locator(".chat-panel").boundingBox())?.width;
+  expect(chatWidthAfter).toBe(chatWidthBefore);
 });
 
 test("compact tier keeps auth and lesson controls two-up", async ({ page }) => {
@@ -423,6 +441,7 @@ test("compact tier keeps auth and lesson controls two-up", async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 800 });
   await topicField.fill("How does photosynthesis work?");
   await page.getByRole("button", { name: "Start learning" }).last().click();
+  await page.getByRole("button", { name: "9 sources" }).click();
   const sourceListStyle = await page
     .locator(".sources-list")
     .evaluate((element) => ({
@@ -697,7 +716,7 @@ test("keyboard learner can start and continue a lesson", async ({ page }) => {
   expect(Number.parseFloat(focusStyle.outlineWidth)).toBeGreaterThanOrEqual(3);
   await page.keyboard.press("Enter");
 
-  await expect(page.getByText("A named learning source")).toBeVisible();
+  await expect(page.getByRole("button", { name: "9 sources" })).toBeVisible();
   const followUp = page.getByLabel("Ask a follow-up");
   await followUp.focus();
   await page.keyboard.type("Give me one more example.");
@@ -724,7 +743,7 @@ test("keyboard-only learner completes the Option B coaching loop", async ({
   await startButton.focus();
   await page.keyboard.press("Enter");
 
-  await expect(page.getByText("A named learning source")).toBeVisible();
+  await expect(page.getByRole("button", { name: "9 sources" })).toBeVisible();
   const practiceAttempt = page.getByLabel("Try it now");
   await practiceAttempt.focus();
   await page.keyboard.type(
@@ -758,4 +777,283 @@ test("reduced motion removes nonessential animation", async ({ page }) => {
   });
   expect(timing.animationDuration).toBeLessThanOrEqual(0.001);
   expect(timing.transitionDuration).toBeLessThanOrEqual(0.001);
+});
+
+test("a multi-section answer renders as a bounded card carousel, not one long scroll", async ({
+  page,
+}) => {
+  const answer = [
+    "## The Game",
+    "Five a side, one hoop each way. Score by putting the ball through the opponent's basket.",
+    "",
+    "| Move | Why it matters |",
+    "| --- | --- |",
+    "| Pass | Finds open space |",
+    "| Screen | Creates an advantage |",
+    "",
+    "## Origins",
+    "Invented in 1891 by James Naismith to keep a gym class busy in the winter.",
+    "",
+    "## Rules",
+    "No running with the ball without dribbling it. Fouls are called for excess contact.",
+  ].join("\n");
+  await mockTutor(page, { answer });
+  await page.goto("/");
+  await page.getByLabel("What do you want to understand?").fill("Basketball");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const carousel = page.getByRole("group", { name: "Session explanation" });
+  await expect(carousel).toBeVisible();
+  await expect(page.getByText("1 / 3")).toBeVisible();
+  await expect(page.getByText(/Five a side, one hoop/)).toBeVisible();
+  await expect(page.getByRole("table")).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Move" })).toBeVisible();
+  await expect(page.getByText(/Invented in 1891/)).not.toBeVisible();
+
+  await page.getByRole("button", { name: "Next card" }).click();
+  await expect(page.getByText("2 / 3")).toBeVisible();
+  await expect(page.getByText(/Invented in 1891/)).toBeVisible();
+
+  await page.getByRole("tab", { name: "Go to card 3" }).click();
+  await expect(page.getByText("3 / 3")).toBeVisible();
+  await expect(page.getByText(/No running with the ball/)).toBeVisible();
+});
+
+test("the reading carousel owns the session while sources stay progressive", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 830, height: 652 });
+  await mockTutor(page, {
+    answer: [
+      "## One useful model",
+      "A neural network compares a prediction with an example and adjusts its weights.",
+      "",
+      "| Signal | Learning move |",
+      "| --- | --- |",
+      "| Error | Adjust the weights |",
+      "| Better prediction | Keep the useful direction |",
+      "",
+      "## Try the loop",
+      "Make a prediction, inspect the error, and update one assumption.",
+    ].join("\n"),
+  });
+  await page.goto("/");
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("How do neural networks learn?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const session = await page.locator(".session-grid").boundingBox();
+  const carousel = await page
+    .getByRole("group", { name: "Session explanation" })
+    .boundingBox();
+  expect(session).not.toBeNull();
+  expect(carousel).not.toBeNull();
+  expect((carousel?.width ?? 0) / (session?.width ?? Infinity)).toBeGreaterThan(
+    0.9,
+  );
+  await expect(
+    page.getByRole("heading", { name: "Named sources" }),
+  ).not.toBeVisible();
+
+  const chatWidthBefore = (await page.locator(".chat-panel").boundingBox())
+    ?.width;
+  await page.getByRole("button", { name: "9 sources" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Named sources" }),
+  ).toBeVisible();
+  const chatWidthDuring = (await page.locator(".chat-panel").boundingBox())
+    ?.width;
+  expect(chatWidthDuring).toBe(chatWidthBefore);
+
+  const signIn = page.getByRole("button", { name: "Sign in to continue" });
+  await expect(signIn).toBeVisible();
+  const signInOverflow = await signIn.evaluate((element) => ({
+    width: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+    height: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(signInOverflow.scrollWidth).toBeLessThanOrEqual(signInOverflow.width);
+  expect(signInOverflow.scrollHeight).toBeLessThanOrEqual(signInOverflow.height);
+  await expect(
+    page.getByRole("img", {
+      name: "Learn, practice, get feedback, and continue",
+    }),
+  ).toBeVisible();
+});
+
+test("learning journeys prefill an editable next move", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockTutor(page);
+  await page.goto("/");
+  await page.getByLabel("What do you want to understand?").fill("Basketball");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const journeys = page.getByRole("group", { name: "Learning journeys" });
+  await expect(journeys).toBeVisible();
+  const journeyOverflow = await journeys.evaluate((element) => ({
+    scrollWidth: element.scrollWidth,
+    clientWidth: element.clientWidth,
+  }));
+  expect(journeyOverflow.scrollWidth).toBeGreaterThan(
+    journeyOverflow.clientWidth,
+  );
+
+  await page.getByRole("button", { name: "Work an example" }).click();
+  const followUp = page.getByLabel("Ask a follow-up");
+  await expect(followUp).toHaveValue(
+    "Walk me through one concrete example step by step.",
+  );
+  await followUp.fill(
+    "Walk me through one concrete basketball example step by step.",
+  );
+  await expect(followUp).toHaveValue(
+    "Walk me through one concrete basketball example step by step.",
+  );
+});
+
+test("signed-in learners see their saved rep as the first journey", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  await mockSignedInCoach(page);
+  await page.goto("/");
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("How does compound interest work?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const continueRep = page.getByRole("button", {
+    name: "Continue your rep",
+  });
+  await expect(continueRep).toBeVisible();
+  await continueRep.click();
+  await expect(page.getByLabel("Ask a follow-up")).toHaveValue(
+    "Explain compound interest and give one example.",
+  );
+});
+
+test("a short single-idea answer renders as one card with no carousel chrome", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  await page.goto("/");
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("How do neural networks learn?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  await expect(
+    page.getByText("A neural network learns by adjusting small numeric weights."),
+  ).toBeVisible();
+  await expect(page.getByText(/^\d+ \/ \d+$/)).not.toBeVisible();
+});
+
+test("drilldown computes an answer via Wolfram|Alpha and offers download only when signed in", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  await page.route("**/api/drilldown", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        query: "How do neural networks learn?",
+        interpretation: "neural network | learning rate",
+        result: "Backpropagation adjusts weights via gradient descent.",
+        images: [],
+        websiteUrl: "https://www.wolframalpha.com/input?i=neural+network",
+        raw: "",
+      }),
+    });
+  });
+  await page.goto("/");
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("How do neural networks learn?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+  await expect(page.getByRole("button", { name: "9 sources" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Drill down" }).click();
+  await expect(
+    page.getByText("Backpropagation adjusts weights via gradient descent."),
+  ).toBeVisible();
+  await expect(page.getByText("Sign in to save and download this.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Download drilldown" }),
+  ).not.toBeVisible();
+});
+
+test("drilldown degrades honestly when Wolfram|Alpha cannot interpret the query", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  await page.route("**/api/drilldown", async (route) => {
+    await route.fulfill({
+      status: 501,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Wolfram|Alpha could not compute that.",
+        detail: "Wolfram|Alpha could not understand the query.",
+      }),
+    });
+  });
+  await page.goto("/");
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("How do neural networks learn?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+  await expect(page.getByRole("button", { name: "9 sources" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Drill down" }).click();
+  await expect(
+    page.getByText("Wolfram|Alpha could not compute that."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+});
+
+test("drilldown state resets when navigating to a different card", async ({
+  page,
+}) => {
+  const answer = [
+    "## The Game",
+    "Five a side, one hoop each way.",
+    "",
+    "## Origins",
+    "Invented in 1891 by James Naismith.",
+  ].join("\n");
+  await mockTutor(page, { answer });
+  await page.route("**/api/drilldown", async (route) => {
+    await route.fulfill({
+      status: 501,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Wolfram|Alpha could not compute that." }),
+    });
+  });
+  await page.goto("/");
+  await page.getByLabel("What do you want to understand?").fill("Basketball");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  await page.getByRole("button", { name: "Drill down" }).click();
+  await expect(
+    page.getByText("Wolfram|Alpha could not compute that."),
+  ).toBeVisible();
+
+  await page.getByRole("tab", { name: "Go to card 2" }).click();
+  await expect(page.getByText("2 / 2")).toBeVisible();
+  await expect(
+    page.getByText("Wolfram|Alpha could not compute that."),
+  ).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Drill down" })).toBeVisible();
+});
+
+test("drilldown requires a query and never forwards a missing one", async ({
+  request,
+}) => {
+  const response = await request.post("/api/drilldown", { data: {} });
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "A query is required.",
+  });
 });

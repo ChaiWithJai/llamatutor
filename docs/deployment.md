@@ -20,6 +20,7 @@ Required Netlify environment variables:
 ```dotenv
 TOGETHER_API_KEY=
 EXA_API_KEY=
+WOLFRAM_ALPHA_APP_ID=
 ```
 
 Optional variables:
@@ -30,6 +31,13 @@ HELICONE_API_KEY=
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 ```
+
+`WOLFRAM_ALPHA_APP_ID` is required anywhere the Drill down action is exposed.
+`HELICONE_API_KEY` is optional observability; the application works without
+it. The Upstash variables are optional in the current Netlify deployment
+because edge rate limits are defined in `netlify.toml`; they remain the
+application-level rate-limit fallback for hosts that do not enforce those
+rules.
 
 The release path is:
 
@@ -43,9 +51,19 @@ The release path is:
 The Netlify project must be connected to `ChaiWithJai/llamatutor` with `main`
 as its production branch.
 
-Run `pnpm check && pnpm test:e2e` before promotion, then verify `/api/health`,
-one source search, one initial lesson, sign-up/sign-in, one completed practice
-rep, resume after reload, data export, and data deletion on the deployed URL.
+Run `pnpm check && pnpm test:e2e` before promotion. Once the deploy is live,
+run the non-mocked health and Wolfram configuration smoke check against the
+actual URL:
+
+```bash
+pnpm verify:deployment -- https://deploy-preview-123--dharmic-data-tutor.netlify.app
+```
+
+The command fails if `/api/health` is unhealthy, if `/api/drilldown` reports
+that `WOLFRAM_ALPHA_APP_ID` is missing, or if a known computable query fails.
+Then verify one source search, one initial lesson, sign-up/sign-in, one
+completed practice rep, resume after reload, data export, and data deletion on
+the deployed URL.
 
 Database migrations live in `netlify/database/migrations`. Netlify applies
 them during deploy. Never put `NETLIFY_DB_URL`, Identity admin credentials, or
@@ -119,6 +137,7 @@ Create `/opt/llamatutor/.env.production` and
 TOGETHER_API_KEY=
 TOGETHER_MULTIMODAL_MODEL=
 EXA_API_KEY=
+WOLFRAM_ALPHA_APP_ID=
 HELICONE_API_KEY=
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
