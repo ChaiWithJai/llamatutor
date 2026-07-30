@@ -127,6 +127,7 @@ describe("typed learning blocks", () => {
       { ...thresholds, p95LatencyMs: 4_000, maxCostUsd: 0.05 },
       safeFixtures.map((fixture, index) => ({
         fixtureId: fixture.id,
+        outcome: fixture.run.outcome,
         provider: "fixture-provider",
         endpoint: "fixture-endpoint",
         model: "fixture-model",
@@ -157,6 +158,7 @@ describe("typed learning blocks", () => {
       [
         {
           fixtureId: safeFixtures[0]!.id,
+          outcome: safeFixtures[0]!.run.outcome,
           provider: "fixture-provider",
           endpoint: "fixture-endpoint",
           model: "fixture-model",
@@ -178,5 +180,37 @@ describe("typed learning blocks", () => {
     expect(report.metrics.missingLiveFixtureIds).toHaveLength(
       safeFixtures.length - 1,
     );
+  });
+
+  it("does not demand token usage from intentional cancellation or failure fixtures", () => {
+    const safeFixtures = goldenLearningBlockFixtures.filter(
+      (fixture) => fixture.expectedPass,
+    );
+    const report = evaluateSuite(
+      safeFixtures,
+      { ...thresholds, p95LatencyMs: 4_000, maxCostUsd: 0.05 },
+      safeFixtures.map((fixture, index) => ({
+        fixtureId: fixture.id,
+        outcome: fixture.run.outcome,
+        provider: "fixture-provider",
+        endpoint: "fixture-endpoint",
+        model: "fixture-model",
+        schemaVersion: "1.0",
+        startedAt: `2026-07-30T15:00:0${index}.000Z`,
+        endpointAvailable: fixture.run.outcome === "completed",
+        httpStatus: fixture.run.outcome === "provider_error" ? 400 : 200,
+        timeToFirstTokenMs: fixture.run.outcome === "completed" ? 250 : null,
+        totalLatencyMs:
+          fixture.run.outcome === "completed" ? 1_000 + index : null,
+        inputTokens: fixture.run.outcome === "completed" ? 100 : null,
+        outputTokens: fixture.run.outcome === "completed" ? 200 : null,
+        imageCount: fixture.imageIds.length,
+        costUsd: fixture.run.outcome === "completed" ? 0.01 : null,
+      })),
+    );
+
+    expect(report.metrics.endpointAvailabilityRate).toBe(1);
+    expect(report.metrics.usageCompleteRate).toBe(1);
+    expect(report.passed).toBe(true);
   });
 });

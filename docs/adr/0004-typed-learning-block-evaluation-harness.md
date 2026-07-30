@@ -79,7 +79,7 @@ The release gate is a checked-in threshold file, not a subjective demo:
 ## Rollout
 
 1. Ship deterministic, hand-authored learning-path prompts on the landing page.
-2. Provision a Maverick-capable endpoint only after cost approval.
+2. Select a current vision model only after cost and threshold approval.
 3. Run the golden harness and attach its report to #32.
 4. Add image input behind a feature flag only after the gate passes.
 5. Compare real cohort outcomes against the text-only path before broadening
@@ -97,3 +97,11 @@ The release gate is a checked-in threshold file, not a subjective demo:
 The UI stays deterministic and testable while model capability can improve
 behind it. Enabling vision requires endpoint authority and cost approval, so
 #32 remains open until live evidence satisfies the gate.
+
+## 2026-07-30 provider follow-up
+
+Together removed Maverick on 2026-03-31 and now offers current vision models
+serverlessly. The harness remains provider-neutral; its live adapter requires an
+explicit model and current per-token prices. No dedicated endpoint is required
+to collect the first measurements, and image upload remains disabled until the
+measured release gate passes.

@@ -12,12 +12,12 @@ The first instinct was a straight swap to `meta-llama/Llama-4-Maverick-17B-128E-
 
 ## Pricing and capability comparison (Together AI, checked 2026-07-30)
 
-| | Qwen2.5-7B-Instruct-Turbo | Llama 4 Maverick |
-|---|---|---|
-| Input price | $0.30 / 1M tokens | $0.27 / 1M tokens |
-| Output price | $0.30 / 1M tokens | $0.85 / 1M tokens |
-| Multimodal (image input) | No — text-only | Yes — native, same endpoint, OpenAI-compatible `image_url` content blocks |
-| Context window | Smaller | ~1M tokens |
+|                             | Qwen2.5-7B-Instruct-Turbo                               | Llama 4 Maverick                                                                                                      |
+| --------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Input price                 | $0.30 / 1M tokens                                       | $0.27 / 1M tokens                                                                                                     |
+| Output price                | $0.30 / 1M tokens                                       | $0.85 / 1M tokens                                                                                                     |
+| Multimodal (image input)    | No — text-only                                          | Yes — native, same endpoint, OpenAI-compatible `image_url` content blocks                                             |
+| Context window              | Smaller                                                 | ~1M tokens                                                                                                            |
 | Relative benchmark strength | Comparable on general text tasks per public comparisons | Ahead on LiveCodeBench, MATH, MMLU, MMLU-Pro; ~2.3x higher throughput reported vs. a similarly-sized comparison model |
 
 Sources: [Together AI — Llama 4 Maverick](https://www.together.ai/models/llama-4-maverick), [Together AI — Llama 4 partnership announcement](https://www.together.ai/blog/llama-4), [Together AI — Qwen2.5-7B-Instruct-Turbo](https://www.together.ai/models/qwen2-5-7b-instruct-turbo), [llm-stats.com comparison](https://llm-stats.com/models/compare/llama-4-maverick-vs-qwen-2.5-coder-7b-instruct)
@@ -44,6 +44,7 @@ This is not specific to Maverick. Every vision-capable model tested returned the
 **Practical consequence: there is no serverless multimodal model available on this Together AI account today.** Getting real image input working requires provisioning a dedicated endpoint through the Together AI dashboard for a chosen vision model — which has an hourly cost and manual setup step, not a config change. That is a cost/ops decision for the team, not something to silently enable before tomorrow's webinar demo.
 
 **What this ADR still delivers today, and what it doesn't:**
+
 - `selectChatModel()` and the widened `ChatGPTMessage` content type ship as working, tested scaffolding. Direct API callers cannot accidentally trigger a known-broken model call: image input receives a truthful `503` while `TOGETHER_MULTIMODAL_MODEL` is unset.
 - The multimodal branch is **not verified against a live model call**. It remains disabled until a dedicated endpoint is provisioned and its model identifier is set in `TOGETHER_MULTIMODAL_MODEL`.
 - The free explainer path (`getChat`, text-only, the only path currently reachable) is unaffected — it still routes to `Qwen/Qwen2.5-7B-Instruct-Turbo`, verified working.
@@ -82,3 +83,23 @@ Not evaluated in depth — flagged as a possible future refinement once real usa
 Revisit after the image-upload UI ships (does real multimodal traffic match the cost model above?) and after the first month of production usage on the free explainer path (is Qwen's quality actually adequate, or does the webinar/early cohort feedback say otherwise?).
 
 **Immediate next decision required, separate from this ADR's scope:** whether to provision a dedicated Together AI endpoint for a vision model before building the image-upload UI, which model to provision (this ADR's cost analysis assumed Maverick's serverless pricing, which doesn't apply to a dedicated endpoint — dedicated pricing is hourly GPU cost, a different comparison entirely), and whether that cost is justified before real usage data exists on how often learners would actually submit an image.
+
+## 2026-07-30 provider follow-up
+
+Together's current changelog says Llama 4 Maverick was deprecated and removed
+on 2026-03-31. It is therefore no longer a deployable target for this product.
+Together now lists three serverless vision options and recommends Qwen3.5 397B;
+the lower-cost Qwen3.5 9B is the recommended first harness baseline for this
+low-traffic experiment. This preserves the ADR's capability-routing decision
+while retiring its stale model candidate.
+
+The dedicated-endpoint premise is also no longer the default. Serverless vision
+can be measured before assuming a fixed GPU bill. Dedicated hardware should be
+considered only if observed quality, latency, rate limits, or traffic justify
+it.
+
+Sources checked 2026-07-30:
+
+- [Together serverless model catalog](https://docs.together.ai/docs/serverless/models)
+- [Together changelog](https://docs.together.ai/docs/changelog)
+- [Together dedicated endpoint pricing](https://docs.together.ai/docs/dedicated-endpoints/overview)

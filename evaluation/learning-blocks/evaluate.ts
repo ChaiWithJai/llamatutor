@@ -13,6 +13,14 @@ export function evaluateFixture(
   fixture: LearningBlockFixture,
 ): FixtureEvaluation {
   const reasons: string[] = [];
+  const outcomeMatched =
+    fixture.expectedOutcome === undefined ||
+    fixture.run.outcome === fixture.expectedOutcome;
+  if (!outcomeMatched) {
+    reasons.push(
+      `Expected ${fixture.expectedOutcome} but observed ${fixture.run.outcome}`,
+    );
+  }
 
   if (fixture.run.outcome !== "completed") {
     const truthfulFailure = fixture.run.fallbackShown;
@@ -21,7 +29,8 @@ export function evaluateFixture(
     }
     return {
       fixtureId: fixture.id,
-      passed: truthfulFailure === fixture.expectedPass,
+      passed: outcomeMatched && truthfulFailure === fixture.expectedPass,
+      outcomeMatched,
       schemaValid: null,
       truthfulFailure,
       rawHtmlBlocks: 0,
@@ -79,7 +88,8 @@ export function evaluateFixture(
 
   return {
     fixtureId: fixture.id,
-    passed: matchedExpectation,
+    passed: outcomeMatched && matchedExpectation,
+    outcomeMatched,
     schemaValid: parsed.ok,
     truthfulFailure: null,
     rawHtmlBlocks,
@@ -131,11 +141,13 @@ export function evaluateSuite(
   );
   const p95LatencyMs = percentile95(
     liveRuns.flatMap((run) =>
-      run.totalLatencyMs === null ? [] : [run.totalLatencyMs],
+      run.outcome !== "completed" || run.totalLatencyMs === null
+        ? []
+        : [run.totalLatencyMs],
     ),
   );
   const measuredCosts = liveRuns.flatMap((run) =>
-    run.costUsd === null ? [] : [run.costUsd],
+    run.outcome !== "completed" || run.costUsd === null ? [] : [run.costUsd],
   );
   const maxMeasuredCostUsd =
     measuredCosts.length === 0 ? null : Math.max(...measuredCosts);
@@ -143,22 +155,25 @@ export function evaluateSuite(
   const missingLiveFixtureIds = fixtures
     .map((fixture) => fixture.id)
     .filter((fixtureId) => !measuredFixtureIds.has(fixtureId));
+  const completedLiveRuns = liveRuns.filter(
+    (run) => run.outcome === "completed",
+  );
   const endpointAvailabilityRate =
-    liveRuns.length === 0
+    completedLiveRuns.length === 0
       ? 0
-      : liveRuns.filter((run) => run.endpointAvailable).length /
-        liveRuns.length;
+      : completedLiveRuns.filter((run) => run.endpointAvailable).length /
+        completedLiveRuns.length;
   const usageCompleteRate =
-    liveRuns.length === 0
+    completedLiveRuns.length === 0
       ? 0
-      : liveRuns.filter(
+      : completedLiveRuns.filter(
           (run) =>
             run.timeToFirstTokenMs !== null &&
             run.totalLatencyMs !== null &&
             run.inputTokens !== null &&
             run.outputTokens !== null &&
             run.costUsd !== null,
-        ).length / liveRuns.length;
+        ).length / completedLiveRuns.length;
   const decisionsNeeded = [
     ...(thresholds.p95LatencyMs === null ? ["p95LatencyMs"] : []),
     ...(thresholds.maxCostUsd === null ? ["maxCostUsd"] : []),

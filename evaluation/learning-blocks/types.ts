@@ -14,6 +14,7 @@ export type LearningBlockFixture = {
   allowedSourceIds: string[];
   expectedBlockTypes: LearningBlock["type"][];
   expectedPass: boolean;
+  expectedOutcome?: RunOutcome;
   run: {
     outcome: RunOutcome;
     response?: unknown;
@@ -36,6 +37,7 @@ export type LearningBlockThresholds = {
 
 export type LiveRunMetadata = {
   fixtureId: string;
+  outcome: RunOutcome;
   provider: string;
   endpoint: string;
   model: string;
@@ -54,6 +56,7 @@ export type LiveRunMetadata = {
 export type FixtureEvaluation = {
   fixtureId: string;
   passed: boolean;
+  outcomeMatched: boolean;
   schemaValid: boolean | null;
   truthfulFailure: boolean | null;
   rawHtmlBlocks: number;

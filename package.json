@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "test": "pnpm test:unit && pnpm test:e2e",
     "test:unit": "vitest run",
-    "test:learning-blocks": "vitest run utils/learningBlocks.test.ts",
+    "test:learning-blocks": "vitest run utils/learningBlocks.test.ts evaluation/learning-blocks/liveHarness.test.ts",
+    "eval:learning-blocks:live": "tsx evaluation/learning-blocks/runLive.ts",
     "test:integration": "node scripts/test-database-integration.mjs",
     "test:e2e": "playwright test",
     "check": "pnpm lint && pnpm test:unit && pnpm build",
@@ -55,6 +56,7 @@
     "prettier": "^3.2.5",
     "prettier-plugin-tailwindcss": "^0.6.0",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.1",
     "typescript": "^5",
     "vitest": "^3.2.7"
   }
