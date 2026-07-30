@@ -636,6 +636,233 @@ a {
   padding: var(--dd-space-3);
 }
 
+/* Card carousel -- issue #36: bounded cards instead of an unbounded scroll
+   of prose. Overflow is impossible by construction: a card's own max-height
+   plus internal scroll (with a cue) replaces the page-level growth that
+   caused silent clipping. */
+.card-carousel {
+  position: relative;
+}
+
+.card-count-pill {
+  position: absolute;
+  top: calc(var(--dd-space-3) * -1);
+  right: 0;
+  z-index: 1;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-pill);
+  background: var(--color-warning);
+  padding: 0.3rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.card-viewport {
+  position: relative;
+}
+
+.carousel-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dd-space-3);
+  max-height: 22rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-md);
+  background: var(--color-surface);
+  padding: var(--dd-space-4);
+}
+
+.card-eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Only the body text scrolls -- the footer (source + drilldown) is a
+   primary action per the design system's ship gate and must stay visible
+   without scrolling. */
+.card-body {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.card-body p:first-child {
+  margin-top: 0;
+}
+
+.card-body-scroll-cue {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--scroll-cue-band);
+  margin-bottom: calc(var(--scroll-cue-band) * -1);
+  background: linear-gradient(180deg, transparent, var(--color-surface) 70%);
+  pointer-events: none;
+}
+
+.card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dd-space-3);
+  padding-top: var(--dd-space-3);
+  border-top: 1.5px dashed var(--color-border);
+}
+
+.card-source-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--dd-radius-pill);
+  background: var(--color-accent-proof);
+  padding: 0.35rem 0.75rem;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.card-source-chip-empty {
+  background: var(--dd-color-gray-100);
+  color: var(--color-text-muted);
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  right: var(--dd-space-3);
+  transform: translateY(-50%);
+  display: grid;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  place-items: center;
+  border: 1.5px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--dd-shadow-lift-sm);
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--dd-space-2);
+  margin-top: var(--dd-space-3);
+}
+
+.carousel-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  padding: 0;
+  cursor: pointer;
+}
+
+.carousel-dot-active {
+  background: var(--color-text);
+}
+
+/* Drilldown -- Wolfram|Alpha LLM API, server-side only. */
+.drilldown-trigger {
+  display: inline-flex;
+  min-height: var(--touch-min);
+  align-items: center;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-pill);
+  background: var(--color-accent-level);
+  padding: 0.5rem 1rem;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.drilldown-panel {
+  width: 100%;
+  margin-top: var(--dd-space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-sm);
+  background: var(--dd-color-cream-200);
+  padding: var(--dd-space-3);
+}
+
+.drilldown-loading {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.drilldown-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dd-space-2);
+  color: var(--color-danger);
+  font-size: 0.85rem;
+}
+
+.drilldown-error p {
+  margin: 0;
+}
+
+.drilldown-result {
+  display: grid;
+  gap: var(--dd-space-2);
+}
+
+.drilldown-source-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-accent-level);
+}
+
+.drilldown-interpretation {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.drilldown-value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.drilldown-image {
+  max-width: 100%;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-sm);
+}
+
+.drilldown-website {
+  color: var(--color-accent-level);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.drilldown-signin-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
 .coach-panel {
   max-height: 20rem;
   overflow-y: auto;

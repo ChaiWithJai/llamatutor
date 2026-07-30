@@ -538,6 +538,8 @@ export default function Home() {
                 setMessages={setMessages}
                 handleChat={(nextMessages) => void handleChat(nextMessages)}
                 topic={topic}
+                sources={sources}
+                signedIn={Boolean(user)}
                 coachSlot={
                   <CoachPanel
                     signedIn={Boolean(user)}

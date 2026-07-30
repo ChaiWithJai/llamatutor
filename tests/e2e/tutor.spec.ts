@@ -759,3 +759,160 @@ test("reduced motion removes nonessential animation", async ({ page }) => {
   expect(timing.animationDuration).toBeLessThanOrEqual(0.001);
   expect(timing.transitionDuration).toBeLessThanOrEqual(0.001);
 });
+
+test("a multi-section answer renders as a bounded card carousel, not one long scroll", async ({
+  page,
+}) => {
+  const answer = [
+    "## The Game",
+    "Five a side, one hoop each way. Score by putting the ball through the opponent's basket.",
+    "",
+    "## Origins",
+    "Invented in 1891 by James Naismith to keep a gym class busy in the winter.",
+    "",
+    "## Rules",
+    "No running with the ball without dribbling it. Fouls are called for excess contact.",
+  ].join("\n");
+  await mockTutor(page, { answer });
+  await page.goto("/");
+  await page.getByLabel("What do you want to understand?").fill("Basketball");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const carousel = page.getByRole("group", { name: "Session explanation" });
+  await expect(carousel).toBeVisible();
+  await expect(page.getByText("1 / 3")).toBeVisible();
+  await expect(page.getByText(/Five a side, one hoop/)).toBeVisible();
+  await expect(page.getByText(/Invented in 1891/)).not.toBeVisible();
+
+  await page.getByRole("button", { name: "Next card" }).click();
+  await expect(page.getByText("2 / 3")).toBeVisible();
+  await expect(page.getByText(/Invented in 1891/)).toBeVisible();
+
+  await page.getByRole("tab", { name: "Go to card 3" }).click();
+  await expect(page.getByText("3 / 3")).toBeVisible();
+  await expect(page.getByText(/No running with the ball/)).toBeVisible();
+});
+
+test("a short single-idea answer renders as one card with no carousel chrome", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  await page.goto("/");
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("How do neural networks learn?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  await expect(
+    page.getByText("A neural network learns by adjusting small numeric weights."),
+  ).toBeVisible();
+  await expect(page.getByText(/^\d+ \/ \d+$/)).not.toBeVisible();
+});
+
+test("drilldown computes an answer via Wolfram|Alpha and offers download only when signed in", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  await page.route("**/api/drilldown", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        query: "How do neural networks learn?",
+        interpretation: "neural network | learning rate",
+        result: "Backpropagation adjusts weights via gradient descent.",
+        images: [],
+        websiteUrl: "https://www.wolframalpha.com/input?i=neural+network",
+        raw: "",
+      }),
+    });
+  });
+  await page.goto("/");
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("How do neural networks learn?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+  await expect(page.getByText("A named learning source")).toBeVisible();
+
+  await page.getByRole("button", { name: "Drill down" }).click();
+  await expect(
+    page.getByText("Backpropagation adjusts weights via gradient descent."),
+  ).toBeVisible();
+  await expect(page.getByText("Sign in to save and download this.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Download drilldown" }),
+  ).not.toBeVisible();
+});
+
+test("drilldown degrades honestly when Wolfram|Alpha cannot interpret the query", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  await page.route("**/api/drilldown", async (route) => {
+    await route.fulfill({
+      status: 501,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "Wolfram|Alpha could not compute that.",
+        detail: "Wolfram|Alpha could not understand the query.",
+      }),
+    });
+  });
+  await page.goto("/");
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("How do neural networks learn?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+  await expect(page.getByText("A named learning source")).toBeVisible();
+
+  await page.getByRole("button", { name: "Drill down" }).click();
+  await expect(
+    page.getByText("Wolfram|Alpha could not compute that."),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+});
+
+test("drilldown state resets when navigating to a different card", async ({
+  page,
+}) => {
+  const answer = [
+    "## The Game",
+    "Five a side, one hoop each way.",
+    "",
+    "## Origins",
+    "Invented in 1891 by James Naismith.",
+  ].join("\n");
+  await mockTutor(page, { answer });
+  await page.route("**/api/drilldown", async (route) => {
+    await route.fulfill({
+      status: 501,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "Wolfram|Alpha could not compute that." }),
+    });
+  });
+  await page.goto("/");
+  await page.getByLabel("What do you want to understand?").fill("Basketball");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  await page.getByRole("button", { name: "Drill down" }).click();
+  await expect(
+    page.getByText("Wolfram|Alpha could not compute that."),
+  ).toBeVisible();
+
+  await page.getByRole("tab", { name: "Go to card 2" }).click();
+  await expect(page.getByText("2 / 2")).toBeVisible();
+  await expect(
+    page.getByText("Wolfram|Alpha could not compute that."),
+  ).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Drill down" })).toBeVisible();
+});
+
+test("drilldown requires a query and never forwards a missing one", async ({
+  request,
+}) => {
+  const response = await request.post("/api/drilldown", { data: {} });
+  expect(response.status()).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "A query is required.",
+  });
+});

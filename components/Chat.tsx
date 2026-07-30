@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import FinalInputArea from "./FinalInputArea";
+import CardCarousel from "./CardCarousel";
 import { ReactNode, useEffect, useRef, useState } from "react";
 
 export default function Chat({
@@ -11,6 +12,8 @@ export default function Chat({
   setMessages,
   handleChat,
   coachSlot,
+  sources = [],
+  signedIn = false,
 }: {
   messages: { role: string; content: string }[];
   disabled: boolean;
@@ -23,6 +26,8 @@ export default function Chat({
   handleChat: (messages?: { role: string; content: string }[]) => void;
   topic: string;
   coachSlot?: ReactNode;
+  sources?: { name: string; url: string }[];
+  signedIn?: boolean;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
@@ -57,20 +62,39 @@ export default function Chat({
       >
         {messages.length > 2 ? (
           <div className="prose max-w-none">
-            {messages.slice(2).map((message, index) =>
-              message.role === "assistant" ? (
+            {messages.slice(2).map((message, index, assistantMessages) => {
+              if (message.role !== "assistant") {
+                return (
+                  <p key={index} className="user-message">
+                    {message.content}
+                  </p>
+                );
+              }
+
+              // Cards are only bounded once a response finishes streaming --
+              // chunking a growing partial string would reshuffle cards on
+              // every token. The still-streaming message keeps the original
+              // live markdown so the learner still sees real-time feedback.
+              const isStreamingThisMessage =
+                loading && index === assistantMessages.length - 1;
+
+              return (
                 <div className="assistant-message" key={index}>
                   <span className="assistant-mark" aria-hidden="true">
                     D
                   </span>
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                  {isStreamingThisMessage ? (
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  ) : (
+                    <CardCarousel
+                      content={message.content}
+                      sources={sources}
+                      signedIn={signedIn}
+                    />
+                  )}
                 </div>
-              ) : (
-                <p key={index} className="user-message">
-                  {message.content}
-                </p>
-              ),
-            )}
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
         ) : (
