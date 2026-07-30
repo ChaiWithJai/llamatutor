@@ -226,6 +226,33 @@ test("source failure continues honestly and offers retry", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("image requests fail truthfully until vision is configured", async ({
+  request,
+}) => {
+  const response = await request.post("/api/getChat", {
+    data: {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Review this diagram." },
+            {
+              type: "image_url",
+              image_url: { url: "https://example.com/diagram.jpg" },
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  expect(response.status()).toBe(503);
+  await expect(response.json()).resolves.toEqual({
+    error:
+      "Image tutoring is not configured yet. Send a text-only question for now.",
+  });
+});
+
 test("long sessions keep the composer reachable", async ({ page }) => {
   const longAnswer = Array.from(
     { length: 80 },
