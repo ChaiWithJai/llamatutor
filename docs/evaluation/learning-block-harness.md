@@ -67,9 +67,20 @@ TOGETHER_API_KEY=... pnpm eval:learning-blocks:live -- \
   --output /tmp/llamatutor-learning-block-report.json
 ```
 
-The command deliberately exits non-zero while latency or cost thresholds remain
-unapproved, even if the provider calls succeed. Attach the JSON from `/tmp` to
-issue #32; do not commit it.
+The product owner approved `Qwen/Qwen3.5-9B`, p95 total latency of 12 seconds,
+and a maximum measured cost of $0.002 per fixture on 2026-07-30.
+
+The nine-fixture live release run passed on 2026-07-30:
+
+- p95 total latency: 8,442 ms;
+- maximum measured fixture cost: $0.00022525;
+- schema validity and truthful failure rates: 100%;
+- raw HTML blocks and unknown source IDs: zero;
+- maximum repair attempts observed: one.
+
+The metadata-only [immutable Netlify report][live-report] is the governance
+artifact for issue #32. It contains no secret, prompt, lesson output, or
+screenshot and is not committed to this repository.
 
 The live path verifies:
 
@@ -124,10 +135,9 @@ silently shrinking the denominator.
 - zero unknown source IDs;
 - truthful fallback for every cancellation or provider error.
 
-Latency and cost are intentionally `null`. The live gate cannot pass until the
-product owner approves explicit `p95LatencyMs` and `maxCostUsd` values for the
-selected current model. This prevents a successful demo from silently becoming
-production policy.
+The product owner-approved latency and cost thresholds are checked in alongside
+the quality and safety thresholds. A successful demo cannot silently become
+production policy without satisfying all of them.
 
 After model and threshold approval:
 
@@ -136,6 +146,8 @@ After model and threshold approval:
 3. set accepted latency and cost budgets in the threshold file;
 4. rerun the suite and attach the report;
 5. expose image input behind a feature flag only if every gate passes.
+
+[live-report]: https://6a6b839a3f578a00087cda2b--dharmic-data-tutor.netlify.app/learning-block-report.json
 
 Together removed Llama 4 Maverick on 2026-03-31. Current serverless vision
 models are preferable for this low-traffic experiment because they have no

@@ -11,6 +11,7 @@ const runnerArguments: Arguments = {
   inputPrice: 1,
   outputPrice: 2,
   timeoutMs: 2_000,
+  reportOnly: false,
 };
 
 function streamedResponse(
@@ -79,6 +80,7 @@ describe("live learning-block harness", () => {
       model: "vision-model",
       inputPrice: 0.1,
       outputPrice: 0.15,
+      reportOnly: false,
     });
   });
 
@@ -114,28 +116,34 @@ describe("live learning-block harness", () => {
   });
 
   it("records streamed usage, latency, and price-derived cost", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        streamedResponse({
-          schemaVersion: "1.0",
-          blocks: [
-            {
-              type: "explanation",
-              title: "Moving shadows",
-              markdown: "Relative positions change.",
-            },
-          ],
-        }),
-      ),
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamedResponse({
+        schemaVersion: "1.0",
+        blocks: [
+          {
+            type: "explanation",
+            title: "Moving shadows",
+            markdown: "Relative positions change.",
+          },
+        ],
+      }),
     );
+    vi.stubGlobal("fetch", fetchMock);
 
     const run = await runFixture(
       "not-a-real-secret",
       runnerArguments,
       liveLearningBlockFixtures[0]!,
     );
+    const request = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ content: string }>;
+      max_tokens: number;
+    };
 
+    expect(request.messages[0]?.content).toContain(
+      "every required type: explanation",
+    );
+    expect(request.max_tokens).toBe(800);
     expect(evaluateFixture(run.fixture).passed).toBe(true);
     expect(run.metadata).toMatchObject({
       outcome: "completed",
@@ -145,6 +153,92 @@ describe("live learning-block harness", () => {
       costUsd: 0.0002,
     });
     expect(run.metadata.timeToFirstTokenMs).not.toBeNull();
+  });
+
+  it("records missing required blocks as a failed fixture", async () => {
+    const incompleteResponse = {
+      schemaVersion: "1.0",
+      blocks: [
+        {
+          type: "explanation",
+          title: "Incomplete image response",
+          markdown: "This omits the required observation.",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(streamedResponse(incompleteResponse))
+        .mockResolvedValueOnce(streamedResponse(incompleteResponse)),
+    );
+
+    const run = await runFixture(
+      "not-a-real-secret",
+      runnerArguments,
+      liveLearningBlockFixtures[1]!,
+    );
+
+    expect(evaluateFixture(run.fixture)).toMatchObject({
+      passed: false,
+      missingBlockTypes: ["image_observation", "source_callout"],
+    });
+    expect(run.fixture.run.repairAttempts).toBe(1);
+  });
+
+  it("uses at most one repair and aggregates its latency, usage, and cost", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          streamedResponse({
+            schemaVersion: "1.0",
+            blocks: [
+              {
+                type: "explanation",
+                title: "Incomplete image response",
+                markdown: "This omits the required observation.",
+              },
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(
+          streamedResponse({
+            schemaVersion: "1.0",
+            blocks: [
+              {
+                type: "image_observation",
+                description: "Light enters the leaf.",
+                evidence: ["An arrow points from the sun to the leaf."],
+              },
+              {
+                type: "source_callout",
+                sourceIds: ["biology-text"],
+                claim: "Light provides energy for photosynthesis.",
+              },
+            ],
+          }),
+        ),
+    );
+
+    const run = await runFixture(
+      "not-a-real-secret",
+      runnerArguments,
+      liveLearningBlockFixtures[1]!,
+    );
+
+    expect(evaluateFixture(run.fixture)).toMatchObject({
+      passed: true,
+      missingBlockTypes: [],
+    });
+    expect(run.fixture.run.repairAttempts).toBe(1);
+    expect(run.metadata).toMatchObject({
+      inputTokens: 200,
+      outputTokens: 100,
+      costUsd: 0.0004,
+    });
   });
 
   it("validates a real tool-call shape before the structured lesson", async () => {
