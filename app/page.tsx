@@ -31,13 +31,16 @@ import {
   ParsedEvent,
   ReconnectInterval,
 } from "eventsource-parser";
-import Link from "next/link";
+import { usePlausible } from "next-plausible";
 import { useCallback, useEffect, useState } from "react";
 
 type ChatMessage = { role: string; content: string };
 type Source = { name: string; url: string; content: string };
 
 export default function Home() {
+  const plausible = usePlausible<{
+    session_completed: { streak: number; grounded: boolean };
+  }>();
   const [inputValue, setInputValue] = useState("");
   const [topic, setTopic] = useState("");
   const [showResult, setShowResult] = useState(false);
@@ -386,6 +389,9 @@ export default function Home() {
         streakCount: number;
         nextRep: string;
       };
+      plausible("session_completed", {
+        props: { streak: saved.streakCount, grounded },
+      });
       setCompletion({ feedback, nextRep: saved.nextRep });
       setDashboard((previous) =>
         previous
@@ -454,9 +460,6 @@ export default function Home() {
                 </p>
                 <h1 className="session-topic">{topic}</h1>
               </div>
-              <Link className="suggestion-button" href="/">
-                New topic
-              </Link>
             </div>
             {(error || sourceWarning) && (
               <div className="session-alerts">

@@ -262,6 +262,7 @@ Do not add a broad feature without a clear learner need and an issue that define
 
 ## Project documents
 
+- [Option B screen, state, and delivery contract](./docs/issue-4-option-b-design-to-life.md)
 - [Option B product and infrastructure decision](./docs/adr/0002-option-b-netlify-identity-database.md)
 - [Deployment and recovery guide](./docs/deployment.md)
 - [Design system](./docs/design-system.md)

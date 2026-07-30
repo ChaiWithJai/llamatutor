@@ -1,4 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import type {
+  CoachDashboard,
+  CoachingGoal,
+  PracticeRep,
+} from "../../utils/coaching";
 
 async function mockTutor(
   page: Page,
@@ -43,6 +48,141 @@ async function mockTutor(
   });
 }
 
+async function mockSignedInCoach(page: Page) {
+  const encode = (value: object) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+  const token = `${encode({ alg: "none", typ: "JWT" })}.${encode({
+    sub: "test-learner",
+    email: "learner@example.com",
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    app_metadata: { provider: "email" },
+    user_metadata: {},
+  })}.test-signature`;
+
+  await page.context().addCookies([
+    {
+      name: "nf_jwt",
+      value: token,
+      url: "http://127.0.0.1:3211",
+    },
+  ]);
+  await page.route("**/.netlify/identity/user", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "test-learner",
+        email: "learner@example.com",
+        confirmed_at: "2026-07-01T12:00:00.000Z",
+        created_at: "2026-07-01T12:00:00.000Z",
+        updated_at: "2026-07-30T12:00:00.000Z",
+        app_metadata: { provider: "email", roles: [] },
+        user_metadata: {},
+      }),
+    });
+  });
+
+  const goal: CoachingGoal = {
+    id: "11111111-1111-4111-8111-111111111111",
+    topic: "How does compound interest work?",
+    level: "Middle School",
+    status: "active",
+    nextRepText: "Use compound interest in a new example.",
+    createdAt: "2026-07-29T12:00:00.000Z",
+    updatedAt: "2026-07-29T12:00:00.000Z",
+  };
+  const firstRep: PracticeRep = {
+    id: "22222222-2222-4222-8222-222222222222",
+    goalId: goal.id,
+    prompt: "Explain compound interest and give one example.",
+    attempt: null,
+    feedback: null,
+    status: "pending",
+    createdAt: "2026-07-29T12:00:00.000Z",
+    completedAt: null,
+  };
+  const nextRep: PracticeRep = {
+    ...firstRep,
+    id: "33333333-3333-4333-8333-333333333333",
+    prompt:
+      "Apply How does compound interest work? to a new example. Explain what changed, what stayed the same, and one question you still have.",
+  };
+  let dashboard: CoachDashboard = {
+    profile: {
+      email: "learner@example.com",
+      defaultLevel: "Middle School",
+      streakCount: 3,
+      lastCompletedOn: "2026-07-29",
+    },
+    goal,
+    pendingRep: firstRep,
+    recentReps: [],
+    completedSessions: 3,
+  };
+  const actions: string[] = [];
+
+  await page.route("**/api/coach**", async (route) => {
+    const request = route.request();
+    if (request.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(dashboard),
+      });
+      return;
+    }
+
+    const payload = request.postDataJSON() as { action?: string };
+    actions.push(payload.action ?? "unknown");
+
+    if (payload.action === "start_goal") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ goal }),
+      });
+      return;
+    }
+
+    if (payload.action === "ensure_rep") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ rep: dashboard.pendingRep }),
+      });
+      return;
+    }
+
+    dashboard = {
+      ...dashboard,
+      profile: { ...dashboard.profile, streakCount: 4 },
+      pendingRep: nextRep,
+      recentReps: [
+        {
+          ...firstRep,
+          attempt: "Interest earns more interest after each period.",
+          feedback: "Clear explanation. Add the compounding frequency.",
+          status: "completed",
+          completedAt: "2026-07-30T12:00:00.000Z",
+        },
+      ],
+      completedSessions: 4,
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        completed: true,
+        streakCount: 4,
+        lastCompletedOn: "2026-07-30",
+        nextRep: nextRep.prompt,
+      }),
+    });
+  });
+
+  return actions;
+}
+
 test("public learner completes the sourced lesson journey", async ({
   page,
 }) => {
@@ -69,7 +209,7 @@ test("public learner completes the sourced lesson journey", async ({
     page.getByRole("button", { name: "Sign in to start coaching" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "New topic" }).first(),
+    page.getByRole("link", { name: "New topic" }),
   ).toBeVisible();
 });
 
@@ -123,4 +263,99 @@ test("narrow source strip exposes horizontal overflow", async ({ page }) => {
     clientWidth: element.clientWidth,
   }));
   expect(overflow.scrollWidth).toBeGreaterThan(overflow.clientWidth);
+
+  const affordance = await page
+    .locator(".sources-scroll-wrap")
+    .evaluate((element) => {
+      const style = window.getComputedStyle(element, "::after");
+      return { content: style.content, width: Number.parseFloat(style.width) };
+    });
+  expect(affordance.content).not.toBe("none");
+  expect(affordance.width).toBeGreaterThan(0);
+});
+
+test("signed in learner completes a rep and resumes the saved next rep", async ({
+  page,
+}) => {
+  await mockTutor(page, {
+    answer: "Clear explanation. Add the compounding frequency.",
+  });
+  const coachActions = await mockSignedInCoach(page);
+  await page.goto("/");
+
+  await expect(page.getByRole("button", { name: "Resume coaching" })).toBeVisible();
+  await expect(page.getByText("3-day showing-up streak")).toBeVisible();
+  await page.getByRole("button", { name: "Resume coaching" }).click();
+
+  await expect(page.getByText("Explain compound interest and give one example.")).toBeVisible();
+  await page
+    .getByLabel("Try it now")
+    .fill("Interest earns more interest after each period.");
+  await page
+    .getByRole("button", { name: "Get feedback and save my next rep" })
+    .click();
+
+  await expect(page.getByText("Rep complete")).toBeVisible();
+  await expect(page.getByText("4-day showing-up streak")).toBeVisible();
+  await expect(
+    page.getByText(/Apply How does compound interest work\? to a new example/),
+  ).toBeVisible();
+  const nextRepCard = await page.locator(".next-rep-card").boundingBox();
+  const followUpComposer = await page.getByLabel("Ask a follow-up").boundingBox();
+  expect(nextRepCard).not.toBeNull();
+  expect(followUpComposer).not.toBeNull();
+  expect((nextRepCard?.y ?? Infinity) + (nextRepCard?.height ?? 0)).toBeLessThanOrEqual(
+    followUpComposer?.y ?? 0,
+  );
+  expect(coachActions).toEqual(["start_goal", "ensure_rep", "complete_rep"]);
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Resume coaching" })).toBeVisible();
+  await expect(page.getByText("4-day showing-up streak")).toBeVisible();
+  await expect(
+    page.getByText(/Apply How does compound interest work\? to a new example/),
+  ).toBeVisible();
+});
+
+test("keyboard learner can start and continue a lesson", async ({ page }) => {
+  await mockTutor(page);
+  await page.goto("/");
+
+  const topicField = page.getByLabel("What do you want to understand?");
+  await topicField.focus();
+  await page.keyboard.type("How do neural networks learn?");
+
+  const startButton = page
+    .getByRole("button", { name: "Start learning" })
+    .last();
+  await startButton.focus();
+  const focusStyle = await startButton.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+  });
+  expect(focusStyle.outlineStyle).not.toBe("none");
+  expect(Number.parseFloat(focusStyle.outlineWidth)).toBeGreaterThanOrEqual(3);
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByText("A named learning source")).toBeVisible();
+  const followUp = page.getByLabel("Ask a follow-up");
+  await followUp.focus();
+  await page.keyboard.type("Give me one more example.");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Give me one more example.")).toBeVisible();
+});
+
+test("reduced motion removes nonessential animation", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+
+  const timing = await page.locator("body").evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      animationDuration: Number.parseFloat(style.animationDuration),
+      transitionDuration: Number.parseFloat(style.transitionDuration),
+    };
+  });
+  expect(timing.animationDuration).toBeLessThanOrEqual(0.001);
+  expect(timing.transitionDuration).toBeLessThanOrEqual(0.001);
 });

@@ -1,6 +1,8 @@
 "use client";
 
 import type { CoachingGoal, PracticeRep } from "@/utils/coaching";
+import NextRepCard from "@/components/NextRepCard";
+import StreakBadge from "@/components/StreakBadge";
 import { FormEvent, useState } from "react";
 
 export default function CoachPanel({
@@ -58,18 +60,10 @@ export default function CoachPanel({
         <div className="coach-panel-heading">
           <div>
             <p className="session-label">Rep complete</p>
-            <strong>{streakCount}-day showing-up streak</strong>
           </div>
-          <span
-            className="streak-badge"
-            aria-label={`${streakCount} day streak`}
-          >
-            {streakCount}
-          </span>
+          <StreakBadge count={streakCount} />
         </div>
-        <p>
-          <strong>Next rep:</strong> {completion.nextRep}
-        </p>
+        <NextRepCard text={completion.nextRep} />
         <small>
           A streak records that you practiced. It does not claim mastery.
         </small>
@@ -93,14 +87,7 @@ export default function CoachPanel({
           <p className="session-label">Your practice rep</p>
           <h2 id="practice-rep-title">{rep.prompt}</h2>
         </div>
-        {streakCount > 0 && (
-          <span
-            className="streak-badge"
-            aria-label={`${streakCount} day streak`}
-          >
-            {streakCount}
-          </span>
-        )}
+        {streakCount > 0 && <StreakBadge count={streakCount} />}
       </div>
       <form onSubmit={submit}>
         <label htmlFor="practice-attempt">Try it now</label>
