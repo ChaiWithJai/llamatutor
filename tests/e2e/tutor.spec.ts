@@ -338,6 +338,17 @@ test("signed in learner completes a rep and resumes the saved next rep", async (
   await expect(
     progressTrail.getByText("Explain compound interest and give one example."),
   ).toBeVisible();
+  const trailDot = await progressTrail
+    .locator(".progress-trail-dot")
+    .boundingBox();
+  const trailPrompt = await progressTrail
+    .locator(".progress-trail-prompt")
+    .boundingBox();
+  expect(trailDot).not.toBeNull();
+  expect(trailPrompt).not.toBeNull();
+  expect(
+    (trailDot?.x ?? Infinity) + (trailDot?.width ?? 0),
+  ).toBeLessThanOrEqual(trailPrompt?.x ?? 0);
   const nextRepCard = await page.locator(".next-rep-card").boundingBox();
   const followUpComposer = await page
     .getByLabel("Ask a follow-up")

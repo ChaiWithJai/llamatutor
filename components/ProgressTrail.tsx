@@ -41,7 +41,9 @@ export default function ProgressTrail({
               <time dateTime={completedAt}>
                 {formatPracticeDate(completedAt)}
               </time>
-              <span>{practiceRep.prompt}</span>
+              <span className="progress-trail-prompt">
+                {practiceRep.prompt}
+              </span>
               <small>
                 {practiceRep.feedback ? "feedback saved" : "completed"}
               </small>

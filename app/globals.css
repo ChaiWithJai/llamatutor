@@ -1140,9 +1140,31 @@ a {
     flex-direction: column;
   }
 
-  .coach-completion-main,
-  .progress-trail li {
+  .coach-completion-main {
     grid-template-columns: 1fr;
+  }
+
+  .progress-trail li {
+    grid-template-columns: 0.75rem minmax(0, 1fr) auto;
+  }
+
+  .progress-trail-dot {
+    grid-row: 1 / span 2;
+  }
+
+  .progress-trail li time {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .progress-trail-prompt {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+
+  .progress-trail li small {
+    grid-column: 3;
+    grid-row: 1;
   }
 
   .resume-banner-heading {
