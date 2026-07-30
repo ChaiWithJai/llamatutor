@@ -555,6 +555,35 @@ a {
   padding: var(--dd-space-4);
 }
 
+/* Design system v1.1, "Scroll & fit rules": every internally-scrolling
+   region needs a visible cue. Sticky-positioned inside the scroll
+   container itself, so no wrapper markup is required. */
+.coach-panel-scroll-cue {
+  position: sticky;
+  bottom: calc(var(--dd-space-4) * -1);
+  z-index: 2;
+  width: calc(100% + (var(--dd-space-4) * 2));
+  height: 1px;
+  margin: -1px calc(var(--dd-space-4) * -1) 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dd-duration-fast) ease;
+}
+
+.coach-panel-scroll-cue::before {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--scroll-cue-band);
+  background: linear-gradient(180deg, transparent, var(--dd-color-cream-200) 70%);
+  content: "";
+}
+
+.coach-panel-scroll-cue[data-visible="true"] {
+  opacity: 1;
+}
+
 .coach-panel-invite {
   display: flex;
   align-items: center;
