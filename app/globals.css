@@ -888,18 +888,68 @@ a {
   line-height: 1.5;
 }
 
+.goal-switch-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--dd-space-4);
+}
+
 .goal-switch-dialog h2 {
-  margin: var(--dd-space-2) 0 var(--dd-space-4);
+  margin: var(--dd-space-2) 0 0;
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-size: clamp(1.5rem, 4.5vw, 2.1rem);
   line-height: 1;
 }
 
-.goal-switch-rep {
-  border-left: 4px solid var(--dd-color-yellow-500);
+.goal-switch-finish {
+  display: grid;
+  gap: var(--dd-space-2);
+  margin-top: var(--dd-space-4);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-sm);
   background: var(--color-surface);
-  padding: var(--dd-space-3) var(--dd-space-4);
-  line-height: 1.5;
+  padding: var(--dd-space-3) var(--dd-space-3) var(--dd-space-4);
+}
+
+.goal-switch-finish label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.goal-switch-finish textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-sm);
+  background: var(--color-canvas);
+  padding: var(--dd-space-3);
+  color: var(--color-text);
+}
+
+.goal-switch-finish-button {
+  background: var(--dd-color-green-500);
+  color: var(--color-text);
+}
+
+.goal-switch-finish-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.goal-switch-rep {
+  margin: 0;
+  border-left: 4px solid var(--dd-color-yellow-500);
+  background: var(--color-canvas);
+  padding: var(--dd-space-2) var(--dd-space-3);
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .goal-switch-actions {
@@ -907,10 +957,18 @@ a {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--dd-space-3);
   margin-top: var(--dd-space-5);
+  padding-top: var(--dd-space-4);
+  border-top: 1.5px dashed var(--color-border);
 }
 
 .goal-switch-actions button {
   min-height: 3.25rem;
+}
+
+.goal-switch-footnote {
+  margin: var(--dd-space-3) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
 }
 
 .auth-form {
