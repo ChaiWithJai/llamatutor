@@ -72,6 +72,57 @@ export type CoachDashboard = {
   completedSessions: number;
 };
 
+export function selectRecentCompletedReps(
+  reps: PracticeRep[],
+  goalId: string,
+  limit = 4,
+) {
+  return reps
+    .filter(
+      (rep) =>
+        rep.goalId === goalId &&
+        rep.status === "completed" &&
+        Boolean(rep.completedAt),
+    )
+    .sort(
+      (left, right) =>
+        new Date(right.completedAt ?? 0).getTime() -
+        new Date(left.completedAt ?? 0).getTime(),
+    )
+    .slice(0, limit);
+}
+
+export function formatPracticeDate(
+  value: string,
+  now = new Date(),
+): string {
+  const completed = new Date(value);
+  if (Number.isNaN(completed.getTime())) return "Completed";
+
+  const completedDay = Date.UTC(
+    completed.getUTCFullYear(),
+    completed.getUTCMonth(),
+    completed.getUTCDate(),
+  );
+  const today = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+  );
+  const daysAgo = Math.floor((today - completedDay) / 86_400_000);
+
+  if (daysAgo === 0) return "Today";
+  if (daysAgo === 1) return "Yesterday";
+  if (daysAgo > 1 && daysAgo < 7) return `${daysAgo} days ago`;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(completed);
+}
+
 export function createFirstRep(topic: string) {
   return `Explain ${topic} in your own words, then give one concrete example. Keep it short enough that the tutor can respond precisely.`;
 }

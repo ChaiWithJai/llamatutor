@@ -90,6 +90,9 @@ it produces warm, direct feedback and a single next rep. The panel describes a
 streak as practice history and never presents it as a grade or mastery score.
 `StreakBadge` and `NextRepCard` are shared components. They use the ritual
 accent so practice state remains distinct from lessons and sources.
+After a completed rep, `ProgressTrail` can disclose up to four recent completed
+rep prompts for the active goal. It stays collapsed by default, uses dates and
+neutral completion labels, and never turns practice history into a score.
 
 ### Account and resume states
 

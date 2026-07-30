@@ -300,6 +300,15 @@ test("signed in learner completes a rep and resumes the saved next rep", async (
   await expect(
     page.getByText(/Apply How does compound interest work\? to a new example/),
   ).toBeVisible();
+  const progressTrail = page.locator("details.progress-trail");
+  await expect(progressTrail).toBeVisible();
+  await expect(progressTrail).not.toHaveAttribute("open", "");
+  await progressTrail.locator("summary").click();
+  await expect(progressTrail).toHaveAttribute("open", "");
+  await expect(progressTrail.getByText("feedback saved")).toBeVisible();
+  await expect(
+    progressTrail.getByText("Explain compound interest and give one example."),
+  ).toBeVisible();
   const nextRepCard = await page.locator(".next-rep-card").boundingBox();
   const followUpComposer = await page.getByLabel("Ask a follow-up").boundingBox();
   expect(nextRepCard).not.toBeNull();

@@ -507,6 +507,7 @@ export default function Home() {
                     goal={goal}
                     rep={rep}
                     streakCount={dashboard?.profile?.streakCount ?? 0}
+                    recentReps={dashboard?.recentReps ?? []}
                     busy={coachingBusy}
                     completion={completion}
                     onSignIn={() => {

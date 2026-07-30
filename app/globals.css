@@ -555,11 +555,22 @@ a {
   padding: var(--dd-space-4);
 }
 
-.coach-panel-invite,
-.coach-panel-complete {
+.coach-panel-invite {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--dd-space-4);
+}
+
+.coach-panel-complete {
+  display: grid;
+  gap: var(--dd-space-4);
+}
+
+.coach-completion-main {
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(12rem, auto) minmax(16rem, 1fr) minmax(12rem, 20rem);
   gap: var(--dd-space-4);
 }
 
@@ -642,6 +653,70 @@ a {
 
 .next-rep-card p {
   margin: 0;
+}
+
+.progress-trail {
+  border-top: 1.5px dashed var(--color-border);
+  padding-top: var(--dd-space-3);
+}
+
+.progress-trail summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--dd-color-cream-200);
+  padding-block: var(--dd-space-2);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.progress-trail summary::marker {
+  color: var(--color-text-muted);
+}
+
+.progress-trail summary em {
+  font-style: normal;
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent-ritual);
+  text-decoration-thickness: 0.15em;
+}
+
+.progress-trail ol {
+  display: grid;
+  margin: var(--dd-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progress-trail li {
+  display: grid;
+  align-items: start;
+  grid-template-columns: 6rem minmax(0, 1fr) auto;
+  gap: var(--dd-space-3);
+  border-bottom: 1px solid var(--dd-color-gray-300);
+  padding: var(--dd-space-3) 0;
+}
+
+.progress-trail li time {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.progress-trail li small {
+  border: 1px solid var(--dd-color-gray-300);
+  border-radius: var(--dd-radius-pill);
+  padding: var(--dd-space-1) var(--dd-space-2);
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.progress-trail > p {
+  margin-top: var(--dd-space-2);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
 }
 
 .sources-panel {
@@ -1001,12 +1076,16 @@ a {
   }
 
   .coach-panel-invite,
-  .coach-panel-complete,
   .resume-banner,
   .error-banner,
   .warning-banner {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .coach-completion-main,
+  .progress-trail li {
+    grid-template-columns: 1fr;
   }
 
   .resume-banner-heading {
