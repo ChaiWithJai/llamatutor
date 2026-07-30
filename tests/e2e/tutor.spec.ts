@@ -48,7 +48,13 @@ async function mockTutor(
   });
 }
 
-async function mockSignedInCoach(page: Page) {
+async function mockSignedInCoach(
+  page: Page,
+  {
+    completeRepFails = false,
+    completeRepDelayMs = 0,
+  }: { completeRepFails?: boolean; completeRepDelayMs?: number } = {},
+) {
   const encode = (value: object) =>
     Buffer.from(JSON.stringify(value)).toString("base64url");
   const token = `${encode({ alg: "none", typ: "JWT" })}.${encode({
@@ -149,6 +155,18 @@ async function mockSignedInCoach(page: Page) {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ rep: dashboard.pendingRep }),
+      });
+      return;
+    }
+
+    if (completeRepDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, completeRepDelayMs));
+    }
+    if (completeRepFails) {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Could not save coaching progress." }),
       });
       return;
     }
@@ -396,6 +414,46 @@ test("signed in learner finishes the pending rep from the goal-switch dialog", a
   await expect
     .poll(() => coachActions)
     .toEqual(["complete_rep", "start_goal", "ensure_rep"]);
+});
+
+test("goal-switch dialog preserves a failed attempt and cannot close while saving", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  const coachActions = await mockSignedInCoach(page, {
+    completeRepFails: true,
+    completeRepDelayMs: 300,
+  });
+  await page.goto("/");
+
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("Machine learning");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const dialog = page.getByRole("dialog", {
+    name: "Two minutes and it counts",
+  });
+  const attempt = dialog.getByLabel("Try it now");
+  await attempt.fill("Keep this exact attempt available for retry.");
+  await dialog
+    .getByRole("button", { name: "Save this rep, then switch" })
+    .click();
+  await expect(
+    dialog.getByRole("button", { name: "Saving…" }),
+  ).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(attempt).toHaveValue("Keep this exact attempt available for retry.");
+  await expect(
+    dialog.getByRole("alert"),
+  ).toBeVisible();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Your attempt is still here, but it was not saved. Please retry.",
+  );
+  await expect(attempt).toHaveValue("Keep this exact attempt available for retry.");
+  expect(coachActions).toEqual(["complete_rep"]);
 });
 
 test("signed in learner can archive and switch without finishing", async ({

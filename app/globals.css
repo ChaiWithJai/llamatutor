@@ -935,6 +935,13 @@ a {
   color: var(--color-text);
 }
 
+.goal-switch-finish-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
 .goal-switch-rep {
   margin: 0;
   border-left: 4px solid var(--dd-color-yellow-500);

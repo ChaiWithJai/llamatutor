@@ -27,6 +27,7 @@ export default function GoalSwitchDialog({
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [attempt, setAttempt] = useState("");
+  const [finishError, setFinishError] = useState("");
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -38,11 +39,13 @@ export default function GoalSwitchDialog({
 
   const handleCancel = () => {
     setAttempt("");
+    setFinishError("");
     onCancel();
   };
 
   const handleConfirm = () => {
     setAttempt("");
+    setFinishError("");
     onConfirm();
   };
 
@@ -50,8 +53,15 @@ export default function GoalSwitchDialog({
     event.preventDefault();
     const value = attempt.trim();
     if (!value) return;
+    setFinishError("");
     const saved = await onFinishRep(value);
-    if (saved) setAttempt("");
+    if (saved) {
+      setAttempt("");
+      return;
+    }
+    setFinishError(
+      "Your attempt is still here, but it was not saved. Please retry.",
+    );
   };
 
   return (
@@ -61,6 +71,7 @@ export default function GoalSwitchDialog({
       aria-labelledby="goal-switch-title"
       onCancel={(event) => {
         event.preventDefault();
+        if (busy) return;
         handleCancel();
       }}
       onClose={handleCancel}
@@ -98,6 +109,11 @@ export default function GoalSwitchDialog({
         >
           {busy ? "Saving…" : "Save this rep, then switch"}
         </button>
+        {finishError && (
+          <p className="goal-switch-finish-error" role="alert">
+            {finishError}
+          </p>
+        )}
       </form>
 
       <div className="goal-switch-actions">

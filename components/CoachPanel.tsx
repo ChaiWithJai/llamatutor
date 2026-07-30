@@ -33,8 +33,8 @@ export default function CoachPanel({
     event.preventDefault();
     const value = attempt.trim();
     if (!value) return;
-    await onSubmit(value);
-    setAttempt("");
+    const saved = await onSubmit(value);
+    if (saved) setAttempt("");
   };
 
   if (!signedIn) {
