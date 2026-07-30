@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "validTopLevelSchemaRate": 1,
+  "maxRepairAttempts": 1,
+  "maxRawHtmlBlocks": 0,
+  "maxMissingSourceIds": 0,
+  "truthfulFailureRate": 1,
+  "p95LatencyMs": null,
+  "maxCostUsd": null
+}
