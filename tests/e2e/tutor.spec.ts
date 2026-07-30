@@ -214,7 +214,7 @@ test("public learner completes the sourced lesson journey", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: "Learn Something Useful. See Where It Comes From.",
+      name: "What do you want to understand?",
     }),
   ).toBeVisible();
   await page
@@ -232,6 +232,55 @@ test("public learner completes the sourced lesson journey", async ({
     page.getByRole("button", { name: "Sign in to start coaching" }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "New topic" })).toBeVisible();
+});
+
+test("landing keeps the complete starting loop in the first laptop viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1353, height: 534 });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("heading", {
+      name: "What do you want to understand?",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("What do you want to understand?"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Ways to begin" }),
+  ).toBeVisible();
+  await expect(page.locator(".learning-sequence")).toBeVisible();
+
+  const sequence = await page.locator(".learning-sequence").boundingBox();
+  const viewport = page.viewportSize();
+  expect(sequence).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(
+    (sequence?.y ?? Infinity) + (sequence?.height ?? 0),
+  ).toBeLessThanOrEqual(viewport?.height ?? 0);
+
+  const pageWidth = await page.locator("html").evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(pageWidth.scrollWidth).toBeLessThanOrEqual(pageWidth.clientWidth);
+});
+
+test("learning-path suggestions disclose intent and fill a useful question", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const suggestions = page.getByRole("group", { name: "Ways to begin" });
+  await expect(suggestions.getByText("Build intuition")).toBeVisible();
+  await suggestions.getByRole("button", { name: /Machine Learning/ }).click();
+  await expect(page.getByLabel("What do you want to understand?")).toHaveValue(
+    "How does a neural network learn from examples?",
+  );
+
+  await expect(page.locator(".learning-sequence ol > li")).toHaveCount(4);
 });
 
 test("source failure continues honestly and offers retry", async ({ page }) => {
@@ -557,20 +606,20 @@ test("goal-switch dialog preserves a failed attempt and cannot close while savin
   await dialog
     .getByRole("button", { name: "Save this rep, then switch" })
     .click();
-  await expect(
-    dialog.getByRole("button", { name: "Saving…" }),
-  ).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Saving…" })).toBeVisible();
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
-  await expect(attempt).toHaveValue("Keep this exact attempt available for retry.");
-  await expect(
-    dialog.getByRole("alert"),
-  ).toBeVisible();
+  await expect(attempt).toHaveValue(
+    "Keep this exact attempt available for retry.",
+  );
+  await expect(dialog.getByRole("alert")).toBeVisible();
   await expect(dialog.getByRole("alert")).toContainText(
     "Your attempt is still here, but it was not saved. Please retry.",
   );
-  await expect(attempt).toHaveValue("Keep this exact attempt available for retry.");
+  await expect(attempt).toHaveValue(
+    "Keep this exact attempt available for retry.",
+  );
   expect(coachActions).toEqual(["complete_rep"]);
 });
 
@@ -596,9 +645,7 @@ test("signed in learner can archive and switch without finishing", async ({
     .evaluate((element) => getComputedStyle(element).gridTemplateColumns);
   expect(actionColumns.split(" ")).toHaveLength(viewportWidth <= 430 ? 1 : 2);
 
-  await dialog
-    .getByRole("button", { name: /^Keep .* open$/ })
-    .click();
+  await dialog.getByRole("button", { name: /^Keep .* open$/ }).click();
   await expect(dialog).not.toBeVisible();
   await expect(
     page.getByRole("button", { name: "Resume coaching" }),

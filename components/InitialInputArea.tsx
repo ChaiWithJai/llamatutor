@@ -35,11 +35,12 @@ const InitialInputArea: FC<TInputAreaProps> = ({
       }}
     >
       <label className="prompt-label" htmlFor="learning-topic">
-        What do you want to understand?
+        Ask your question
       </label>
       <div className="prompt-row">
         <textarea
           id="learning-topic"
+          aria-label="What do you want to understand?"
           placeholder="Try “How does a neural network learn?”"
           disabled={disabled}
           value={promptValue}
