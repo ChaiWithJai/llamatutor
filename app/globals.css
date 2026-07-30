@@ -354,7 +354,7 @@ a {
   gap: var(--dd-space-6);
   border: 1.5px solid var(--color-border);
   border-radius: var(--dd-radius-md);
-  background: var(--dd-color-pink-500);
+  background: var(--color-accent-ritual);
   padding: var(--dd-space-5);
   text-align: left;
 }
@@ -371,6 +371,19 @@ a {
 
 .resume-banner p:last-child {
   margin-top: var(--dd-space-1);
+}
+
+.resume-banner-copy {
+  display: grid;
+  flex: 1;
+  gap: var(--dd-space-3);
+}
+
+.resume-banner-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--dd-space-4);
 }
 
 .proof-strip {
@@ -596,6 +609,15 @@ a {
   color: var(--color-text-muted);
 }
 
+.streak-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dd-space-2);
+  font-size: 0.75rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
 .streak-badge {
   display: grid;
   width: 2.75rem;
@@ -604,9 +626,22 @@ a {
   place-items: center;
   border: 1.5px solid var(--color-border);
   border-radius: 50%;
-  background: var(--color-accent-followup);
+  background: var(--color-accent-ritual);
   font-family: var(--font-display);
   font-weight: 750;
+}
+
+.next-rep-card {
+  display: grid;
+  gap: var(--dd-space-1);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-sm);
+  background: var(--color-accent-ritual);
+  padding: var(--dd-space-3);
+}
+
+.next-rep-card p {
+  margin: 0;
 }
 
 .sources-panel {
@@ -958,6 +993,11 @@ a {
 
   .coach-panel {
     max-height: 17rem;
+    flex: 0 0 auto;
+  }
+
+  .message-list {
+    min-height: 0;
   }
 
   .coach-panel-invite,
@@ -966,6 +1006,10 @@ a {
   .error-banner,
   .warning-banner {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .resume-banner-heading {
     flex-direction: column;
   }
 

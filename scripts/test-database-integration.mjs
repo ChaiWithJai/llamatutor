@@ -1,9 +1,12 @@
 import pg from "pg";
 
-const connectionString = process.env.NETLIFY_DB_URL;
+const connectionString =
+  process.env.NETLIFY_DATABASE_URL ?? process.env.NETLIFY_DB_URL;
 
 if (!connectionString) {
-  console.error("NETLIFY_DB_URL is required for the database integration test.");
+  console.error(
+    "NETLIFY_DATABASE_URL (or legacy NETLIFY_DB_URL) is required for the database integration test.",
+  );
   process.exit(1);
 }
 
