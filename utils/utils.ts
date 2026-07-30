@@ -46,6 +46,9 @@ export async function fetchWithTimeout(
 type suggestionType = {
   id: number;
   name: string;
+  prompt: string;
+  move: string;
+  description: string;
   icon: string;
 };
 
@@ -53,21 +56,33 @@ export const suggestions: suggestionType[] = [
   {
     id: 1,
     name: "Basketball",
+    prompt: "How does spacing create an open shot in basketball?",
+    move: "See a system",
+    description: "Trace one play from movement to opportunity.",
     icon: "/basketball-new.svg",
   },
   {
     id: 2,
     name: "Machine Learning",
+    prompt: "How does a neural network learn from examples?",
+    move: "Build intuition",
+    description: "Turn weights and training into a concrete picture.",
     icon: "/light-new.svg",
   },
   {
     id: 3,
     name: "Personal Finance",
+    prompt: "How does compound interest change savings over time?",
+    move: "Work an example",
+    description: "Follow one decision through the numbers.",
     icon: "/finance.svg",
   },
   {
     id: 4,
     name: "U.S History",
+    prompt: "What changed because of the Great Migration?",
+    move: "Connect causes",
+    description: "Link people, places, pressure, and consequence.",
     icon: "/us.svg",
   },
 ];
