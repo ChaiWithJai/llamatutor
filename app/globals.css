@@ -164,27 +164,6 @@ a {
   text-align: center;
 }
 
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dd-space-2);
-  margin: 0 0 var(--dd-space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--dd-radius-pill);
-  padding: 0.55rem 0.85rem;
-  font-size: 0.75rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.eyebrow-dot {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 50%;
-  background: var(--color-success);
-}
-
 .hero-title {
   max-width: 62rem;
   margin: 0 auto;
@@ -202,14 +181,6 @@ a {
     var(--color-accent-learning) 68%
   );
   padding-inline: 0.04em;
-}
-
-.hero-description {
-  max-width: 44rem;
-  margin: var(--dd-space-4) auto 0;
-  color: var(--color-text-muted);
-  font-size: clamp(1rem, 1.6vw, 1.125rem);
-  line-height: 1.5;
 }
 
 .prompt-card {
@@ -1349,18 +1320,8 @@ a {
     padding-top: var(--dd-space-4);
   }
 
-  .eyebrow {
-    margin-bottom: var(--dd-space-3);
-    font-size: 0.65rem;
-  }
-
   .hero-title {
     font-size: clamp(2.4rem, 12vw, 3.2rem);
-  }
-
-  .hero-description {
-    margin-top: var(--dd-space-3);
-    font-size: 0.92rem;
   }
 
   .prompt-card {
@@ -1515,25 +1476,8 @@ a {
     padding: var(--dd-space-2) 0 var(--dd-space-3);
   }
 
-  .eyebrow {
-    margin-bottom: var(--dd-space-2);
-    padding: 0.35rem 0.65rem;
-    font-size: 0.625rem;
-  }
-
-  .eyebrow-dot {
-    width: 0.4rem;
-    height: 0.4rem;
-  }
-
   .hero-title {
     font-size: clamp(2.5rem, 4.3vw, 3.65rem);
-  }
-
-  .hero-description {
-    margin-top: var(--dd-space-2);
-    font-size: 0.9rem;
-    line-height: 1.35;
   }
 
   .prompt-card {

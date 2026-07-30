@@ -249,6 +249,14 @@ test("landing keeps the complete starting loop in the first laptop viewport", as
     page.getByLabel("What do you want to understand?"),
   ).toBeVisible();
   await expect(
+    page.getByText("Sources you can inspect · practice you can keep"),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText(
+      "Ask anything. Get a clear explanation grounded in named sources, then try one useful practice rep.",
+    ),
+  ).toHaveCount(0);
+  await expect(
     page.getByRole("group", { name: "Ways to begin" }),
   ).toBeVisible();
   await expect(page.locator(".learning-sequence")).toBeVisible();
