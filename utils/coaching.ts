@@ -72,6 +72,23 @@ export type CoachDashboard = {
   completedSessions: number;
 };
 
+export function requiresGoalSwitchConfirmation({
+  currentGoal,
+  pendingRep,
+  nextTopic,
+}: {
+  currentGoal: CoachingGoal | null;
+  pendingRep: PracticeRep | null;
+  nextTopic: string;
+}) {
+  return Boolean(
+    currentGoal?.status === "active" &&
+    pendingRep?.status === "pending" &&
+    currentGoal.topic.trim().toLocaleLowerCase() !==
+      nextTopic.trim().toLocaleLowerCase(),
+  );
+}
+
 export function selectRecentCompletedReps(
   reps: PracticeRep[],
   goalId: string,
@@ -92,10 +109,7 @@ export function selectRecentCompletedReps(
     .slice(0, limit);
 }
 
-export function formatPracticeDate(
-  value: string,
-  now = new Date(),
-): string {
+export function formatPracticeDate(value: string, now = new Date()): string {
   const completed = new Date(value);
   if (Number.isNaN(completed.getTime())) return "Completed";
 

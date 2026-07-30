@@ -208,9 +208,7 @@ test("public learner completes the sourced lesson journey", async ({
   await expect(
     page.getByRole("button", { name: "Sign in to start coaching" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "New topic" }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "New topic" })).toBeVisible();
 });
 
 test("source failure continues honestly and offers retry", async ({ page }) => {
@@ -283,11 +281,15 @@ test("signed in learner completes a rep and resumes the saved next rep", async (
   const coachActions = await mockSignedInCoach(page);
   await page.goto("/");
 
-  await expect(page.getByRole("button", { name: "Resume coaching" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Resume coaching" }),
+  ).toBeVisible();
   await expect(page.getByText("3-day showing-up streak")).toBeVisible();
   await page.getByRole("button", { name: "Resume coaching" }).click();
 
-  await expect(page.getByText("Explain compound interest and give one example.")).toBeVisible();
+  await expect(
+    page.getByText("Explain compound interest and give one example."),
+  ).toBeVisible();
   await page
     .getByLabel("Try it now")
     .fill("Interest earns more interest after each period.");
@@ -310,20 +312,67 @@ test("signed in learner completes a rep and resumes the saved next rep", async (
     progressTrail.getByText("Explain compound interest and give one example."),
   ).toBeVisible();
   const nextRepCard = await page.locator(".next-rep-card").boundingBox();
-  const followUpComposer = await page.getByLabel("Ask a follow-up").boundingBox();
+  const followUpComposer = await page
+    .getByLabel("Ask a follow-up")
+    .boundingBox();
   expect(nextRepCard).not.toBeNull();
   expect(followUpComposer).not.toBeNull();
-  expect((nextRepCard?.y ?? Infinity) + (nextRepCard?.height ?? 0)).toBeLessThanOrEqual(
-    followUpComposer?.y ?? 0,
-  );
+  expect(
+    (nextRepCard?.y ?? Infinity) + (nextRepCard?.height ?? 0),
+  ).toBeLessThanOrEqual(followUpComposer?.y ?? 0);
   expect(coachActions).toEqual(["start_goal", "ensure_rep", "complete_rep"]);
 
   await page.reload();
-  await expect(page.getByRole("button", { name: "Resume coaching" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Resume coaching" }),
+  ).toBeVisible();
   await expect(page.getByText("4-day showing-up streak")).toBeVisible();
   await expect(
     page.getByText(/Apply How does compound interest work\? to a new example/),
   ).toBeVisible();
+});
+
+test("signed in learner confirms before abandoning a pending rep", async ({
+  page,
+}) => {
+  await mockTutor(page);
+  const coachActions = await mockSignedInCoach(page);
+  await page.goto("/");
+
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("Machine learning");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const dialog = page.getByRole("dialog", {
+    name: "Start “Machine learning” instead?",
+  });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("How does compound interest work?");
+  await expect(dialog).toContainText(
+    "Explain compound interest and give one example.",
+  );
+  expect(coachActions).toEqual([]);
+
+  await dialog.getByRole("button", { name: "Finish this rep first" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Resume coaching" }),
+  ).toBeVisible();
+  expect(coachActions).toEqual([]);
+
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("Machine learning");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+  await dialog
+    .getByRole("button", { name: "Start “Machine learning”" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Machine learning" }),
+  ).toBeVisible();
+  await expect.poll(() => coachActions).toEqual(["start_goal", "ensure_rep"]);
 });
 
 test("keyboard learner can start and continue a lesson", async ({ page }) => {
@@ -340,7 +389,10 @@ test("keyboard learner can start and continue a lesson", async ({ page }) => {
   await startButton.focus();
   const focusStyle = await startButton.evaluate((element) => {
     const style = window.getComputedStyle(element);
-    return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+    return {
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+    };
   });
   expect(focusStyle.outlineStyle).not.toBe("none");
   expect(Number.parseFloat(focusStyle.outlineWidth)).toBeGreaterThanOrEqual(3);
