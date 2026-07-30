@@ -322,6 +322,80 @@ test("narrow source strip exposes horizontal overflow", async ({ page }) => {
   expect(affordance.width).toBeGreaterThan(0);
 });
 
+test("compact tier keeps auth and lesson controls two-up", async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 800 });
+  await mockTutor(page);
+  await page.goto("/");
+
+  const topicField = page.getByLabel("What do you want to understand?");
+  const levelSelect = page.getByLabel("Learning level");
+  const topicBox = await topicField.boundingBox();
+  const levelBox = await levelSelect.boundingBox();
+  expect(topicBox).not.toBeNull();
+  expect(levelBox).not.toBeNull();
+  expect(Math.abs((topicBox?.y ?? 0) - (levelBox?.y ?? 1))).toBeLessThanOrEqual(
+    1,
+  );
+
+  await page.getByRole("button", { name: "Sign in" }).click();
+  const authDialog = page.getByRole("dialog", { name: "Welcome back" });
+  const authColumns = await authDialog
+    .locator(".auth-switches")
+    .evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+  expect(authColumns.split(" ")).toHaveLength(2);
+  await authDialog
+    .getByRole("button", { name: "Close account dialog" })
+    .click();
+
+  await page.setViewportSize({ width: 430, height: 800 });
+  const phoneTopicBox = await topicField.boundingBox();
+  const phoneLevelBox = await levelSelect.boundingBox();
+  expect(phoneTopicBox).not.toBeNull();
+  expect(phoneLevelBox).not.toBeNull();
+  expect(phoneLevelBox?.y ?? 0).toBeGreaterThan(phoneTopicBox?.y ?? Infinity);
+
+  await page.getByRole("button", { name: "Sign in" }).click();
+  const phoneAuthColumns = await authDialog
+    .locator(".auth-switches")
+    .evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+  expect(phoneAuthColumns.split(" ")).toHaveLength(1);
+  await authDialog
+    .getByRole("button", { name: "Close account dialog" })
+    .click();
+
+  await page.setViewportSize({ width: 600, height: 800 });
+  await topicField.fill("How does photosynthesis work?");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+  const sourceListStyle = await page
+    .locator(".sources-list")
+    .evaluate((element) => ({
+      flexDirection: getComputedStyle(element).flexDirection,
+      overflowY: getComputedStyle(element).overflowY,
+    }));
+  expect(sourceListStyle.flexDirection).toBe("column");
+  expect(sourceListStyle.overflowY).toBe("auto");
+});
+
+test("compact goal-switch actions remain side by side", async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 800 });
+  await mockTutor(page);
+  await mockSignedInCoach(page);
+  await page.goto("/");
+
+  await page
+    .getByLabel("What do you want to understand?")
+    .fill("Machine learning");
+  await page.getByRole("button", { name: "Start learning" }).last().click();
+
+  const dialog = page.getByRole("dialog", {
+    name: "Two minutes and it counts",
+  });
+  const actionColumns = await dialog
+    .locator(".goal-switch-actions")
+    .evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+  expect(actionColumns.split(" ")).toHaveLength(2);
+});
+
 test("signed in learner completes a rep and resumes the saved next rep", async ({
   page,
 }) => {
@@ -516,6 +590,11 @@ test("signed in learner can archive and switch without finishing", async ({
     name: "Two minutes and it counts",
   });
   await expect(dialog).toBeVisible();
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  const actionColumns = await dialog
+    .locator(".goal-switch-actions")
+    .evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+  expect(actionColumns.split(" ")).toHaveLength(viewportWidth <= 430 ? 1 : 2);
 
   await dialog
     .getByRole("button", { name: /^Keep .* open$/ })
