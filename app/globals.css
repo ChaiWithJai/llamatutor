@@ -354,7 +354,7 @@ a {
   gap: var(--dd-space-6);
   border: 1.5px solid var(--color-border);
   border-radius: var(--dd-radius-md);
-  background: var(--dd-color-pink-500);
+  background: var(--color-accent-ritual);
   padding: var(--dd-space-5);
   text-align: left;
 }
@@ -371,6 +371,19 @@ a {
 
 .resume-banner p:last-child {
   margin-top: var(--dd-space-1);
+}
+
+.resume-banner-copy {
+  display: grid;
+  flex: 1;
+  gap: var(--dd-space-3);
+}
+
+.resume-banner-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--dd-space-4);
 }
 
 .proof-strip {
@@ -542,11 +555,25 @@ a {
   padding: var(--dd-space-4);
 }
 
-.coach-panel-invite,
-.coach-panel-complete {
+.coach-panel-invite {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--dd-space-4);
+}
+
+.coach-panel-complete {
+  display: grid;
+  gap: var(--dd-space-4);
+}
+
+.coach-completion-main {
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(12rem, auto) minmax(16rem, 1fr) minmax(
+      12rem,
+      20rem
+    );
   gap: var(--dd-space-4);
 }
 
@@ -596,6 +623,15 @@ a {
   color: var(--color-text-muted);
 }
 
+.streak-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dd-space-2);
+  font-size: 0.75rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
 .streak-badge {
   display: grid;
   width: 2.75rem;
@@ -604,9 +640,86 @@ a {
   place-items: center;
   border: 1.5px solid var(--color-border);
   border-radius: 50%;
-  background: var(--color-accent-followup);
+  background: var(--color-accent-ritual);
   font-family: var(--font-display);
   font-weight: 750;
+}
+
+.next-rep-card {
+  display: grid;
+  gap: var(--dd-space-1);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--dd-radius-sm);
+  background: var(--color-accent-ritual);
+  padding: var(--dd-space-3);
+}
+
+.next-rep-card p {
+  margin: 0;
+}
+
+.progress-trail {
+  border-top: 1.5px dashed var(--color-border);
+  padding-top: var(--dd-space-3);
+}
+
+.progress-trail summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--dd-color-cream-200);
+  padding-block: var(--dd-space-2);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.progress-trail summary::marker {
+  color: var(--color-text-muted);
+}
+
+.progress-trail summary em {
+  font-style: normal;
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent-ritual);
+  text-decoration-thickness: 0.15em;
+}
+
+.progress-trail ol {
+  display: grid;
+  margin: var(--dd-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progress-trail li {
+  display: grid;
+  align-items: start;
+  grid-template-columns: 6rem minmax(0, 1fr) auto;
+  gap: var(--dd-space-3);
+  border-bottom: 1px solid var(--dd-color-gray-300);
+  padding: var(--dd-space-3) 0;
+}
+
+.progress-trail li time {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.progress-trail li small {
+  border: 1px solid var(--dd-color-gray-300);
+  border-radius: var(--dd-radius-pill);
+  padding: var(--dd-space-1) var(--dd-space-2);
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.progress-trail > p {
+  margin-top: var(--dd-space-2);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
 }
 
 .sources-panel {
@@ -775,6 +888,31 @@ a {
   line-height: 1.5;
 }
 
+.goal-switch-dialog h2 {
+  margin: var(--dd-space-2) 0 var(--dd-space-4);
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  line-height: 1;
+}
+
+.goal-switch-rep {
+  border-left: 4px solid var(--dd-color-yellow-500);
+  background: var(--color-surface);
+  padding: var(--dd-space-3) var(--dd-space-4);
+  line-height: 1.5;
+}
+
+.goal-switch-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--dd-space-3);
+  margin-top: var(--dd-space-5);
+}
+
+.goal-switch-actions button {
+  min-height: 3.25rem;
+}
+
 .auth-form {
   display: grid;
   gap: var(--dd-space-4);
@@ -885,6 +1023,10 @@ a {
 }
 
 @media (max-width: 800px) {
+  .goal-switch-actions {
+    grid-template-columns: 1fr;
+  }
+
   .header-links a:not(.header-cta) {
     display: none;
   }
@@ -958,14 +1100,27 @@ a {
 
   .coach-panel {
     max-height: 17rem;
+    flex: 0 0 auto;
+  }
+
+  .message-list {
+    min-height: 0;
   }
 
   .coach-panel-invite,
-  .coach-panel-complete,
   .resume-banner,
   .error-banner,
   .warning-banner {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .coach-completion-main,
+  .progress-trail li {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-banner-heading {
     flex-direction: column;
   }
 

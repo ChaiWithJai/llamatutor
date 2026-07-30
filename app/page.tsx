@@ -5,6 +5,7 @@ import AccountDialog from "@/components/AccountDialog";
 import Chat from "@/components/Chat";
 import CoachPanel from "@/components/CoachPanel";
 import Footer from "@/components/Footer";
+import GoalSwitchDialog from "@/components/GoalSwitchDialog";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import ResumeBanner from "@/components/ResumeBanner";
@@ -16,6 +17,7 @@ import {
   createFirstRep,
   createNextRep,
   formatCoachFeedbackPrompt,
+  requiresGoalSwitchConfirmation,
 } from "@/utils/coaching";
 import { getSystemPrompt } from "@/utils/utils";
 import { identityRequestHeaders } from "@/utils/clientIdentity";
@@ -31,13 +33,16 @@ import {
   ParsedEvent,
   ReconnectInterval,
 } from "eventsource-parser";
-import Link from "next/link";
+import { usePlausible } from "next-plausible";
 import { useCallback, useEffect, useState } from "react";
 
 type ChatMessage = { role: string; content: string };
 type Source = { name: string; url: string; content: string };
 
 export default function Home() {
+  const plausible = usePlausible<{
+    session_completed: { streak: number; grounded: boolean };
+  }>();
   const [inputValue, setInputValue] = useState("");
   const [topic, setTopic] = useState("");
   const [showResult, setShowResult] = useState(false);
@@ -63,6 +68,10 @@ export default function Home() {
   const [completion, setCompletion] = useState<{
     feedback: string;
     nextRep: string;
+  } | null>(null);
+  const [pendingSession, setPendingSession] = useState<{
+    question: string;
+    level: string;
   } | null>(null);
 
   const loadDashboard = useCallback(async () => {
@@ -280,7 +289,7 @@ export default function Home() {
     await handleChat(initialMessages);
   };
 
-  const startSession = async (question: string, level: string) => {
+  const beginSession = async (question: string, level: string) => {
     const cleanQuestion = question.trim();
     if (!cleanQuestion) return;
 
@@ -303,6 +312,25 @@ export default function Home() {
     } catch {
       // Each critical path renders its own recoverable error.
     }
+  };
+
+  const startSession = async (question: string, level: string) => {
+    const cleanQuestion = question.trim();
+    if (!cleanQuestion) return;
+
+    if (
+      user &&
+      requiresGoalSwitchConfirmation({
+        currentGoal: goal,
+        pendingRep: rep,
+        nextTopic: cleanQuestion,
+      })
+    ) {
+      setPendingSession({ question: cleanQuestion, level });
+      return;
+    }
+
+    await beginSession(cleanQuestion, level);
   };
 
   const handleInitialChat = () => startSession(inputValue, ageGroup);
@@ -386,6 +414,9 @@ export default function Home() {
         streakCount: number;
         nextRep: string;
       };
+      plausible("session_completed", {
+        props: { streak: saved.streakCount, grounded },
+      });
       setCompletion({ feedback, nextRep: saved.nextRep });
       setDashboard((previous) =>
         previous
@@ -443,7 +474,7 @@ export default function Home() {
       />
       <main
         id="main"
-        className={`tutor-main${showResult ? " session-active" : ""}`}
+        className={showResult ? "tutor-main session-active" : "tutor-main"}
       >
         {showResult ? (
           <div className="session-page">
@@ -454,9 +485,6 @@ export default function Home() {
                 </p>
                 <h1 className="session-topic">{topic}</h1>
               </div>
-              <Link className="suggestion-button" href="/">
-                New topic
-              </Link>
             </div>
             {(error || sourceWarning) && (
               <div className="session-alerts">
@@ -504,6 +532,7 @@ export default function Home() {
                     goal={goal}
                     rep={rep}
                     streakCount={dashboard?.profile?.streakCount ?? 0}
+                    recentReps={dashboard?.recentReps ?? []}
                     busy={coachingBusy}
                     completion={completion}
                     onSignIn={() => {
@@ -543,6 +572,19 @@ export default function Home() {
         initialMode={authMode}
         onClose={() => setAuthOpen(false)}
         onAuthenticated={(nextUser) => void handleAuthenticated(nextUser)}
+      />
+      <GoalSwitchDialog
+        open={Boolean(pendingSession)}
+        currentGoal={goal}
+        pendingRep={rep}
+        nextTopic={pendingSession?.question ?? ""}
+        onCancel={() => setPendingSession(null)}
+        onConfirm={() => {
+          if (!pendingSession) return;
+          const nextSession = pendingSession;
+          setPendingSession(null);
+          void beginSession(nextSession.question, nextSession.level);
+        }}
       />
       {user?.email && (
         <AccountDialog

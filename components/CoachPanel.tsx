@@ -1,6 +1,9 @@
 "use client";
 
 import type { CoachingGoal, PracticeRep } from "@/utils/coaching";
+import NextRepCard from "@/components/NextRepCard";
+import ProgressTrail from "@/components/ProgressTrail";
+import StreakBadge from "@/components/StreakBadge";
 import { FormEvent, useState } from "react";
 
 export default function CoachPanel({
@@ -8,6 +11,7 @@ export default function CoachPanel({
   goal,
   rep,
   streakCount,
+  recentReps,
   busy,
   completion,
   onSignIn,
@@ -17,6 +21,7 @@ export default function CoachPanel({
   goal: CoachingGoal | null;
   rep: PracticeRep | null;
   streakCount: number;
+  recentReps: PracticeRep[];
   busy: boolean;
   completion: { feedback: string; nextRep: string } | null;
   onSignIn: () => void;
@@ -55,24 +60,19 @@ export default function CoachPanel({
   if (completion) {
     return (
       <section className="coach-panel coach-panel-complete" aria-live="polite">
-        <div className="coach-panel-heading">
-          <div>
-            <p className="session-label">Rep complete</p>
-            <strong>{streakCount}-day showing-up streak</strong>
+        <div className="coach-completion-main">
+          <div className="coach-panel-heading">
+            <div>
+              <p className="session-label">Rep complete</p>
+            </div>
+            <StreakBadge count={streakCount} />
           </div>
-          <span
-            className="streak-badge"
-            aria-label={`${streakCount} day streak`}
-          >
-            {streakCount}
-          </span>
+          <NextRepCard text={completion.nextRep} />
+          <small>
+            A streak records that you practiced. It does not claim mastery.
+          </small>
         </div>
-        <p>
-          <strong>Next rep:</strong> {completion.nextRep}
-        </p>
-        <small>
-          A streak records that you practiced. It does not claim mastery.
-        </small>
+        {goal && <ProgressTrail goal={goal} recentReps={recentReps} />}
       </section>
     );
   }
@@ -93,14 +93,7 @@ export default function CoachPanel({
           <p className="session-label">Your practice rep</p>
           <h2 id="practice-rep-title">{rep.prompt}</h2>
         </div>
-        {streakCount > 0 && (
-          <span
-            className="streak-badge"
-            aria-label={`${streakCount} day streak`}
-          >
-            {streakCount}
-          </span>
-        )}
+        {streakCount > 0 && <StreakBadge count={streakCount} />}
       </div>
       <form onSubmit={submit}>
         <label htmlFor="practice-attempt">Try it now</label>

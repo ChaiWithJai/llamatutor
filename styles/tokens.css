@@ -54,6 +54,7 @@
   --color-accent-proof: var(--dd-color-orange-500);
   --color-accent-level: var(--dd-color-blue-500);
   --color-accent-followup: var(--dd-color-pink-500);
+  --color-accent-ritual: var(--dd-color-pink-500);
 
   --font-body: var(--font-inter), Inter, sans-serif;
   --font-display: var(--font-fredoka), Fredoka, sans-serif;
