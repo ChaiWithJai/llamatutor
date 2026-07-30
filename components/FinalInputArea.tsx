@@ -19,11 +19,21 @@ type TInputAreaProps = {
 };
 
 const universalMoves = [
-  { id: "intuition", label: "Build intuition", prompt: "Explain this another way with a simple analogy." },
-  { id: "example", label: "Work an example", prompt: "Walk me through one concrete example step by step." },
-  { id: "check", label: "Check understanding", prompt: "Ask me one short question to check my understanding." },
-  { id: "practice", label: "Try a rep", prompt: "Give me one useful practice rep I can do now." },
-  { id: "evidence", label: "Inspect evidence", prompt: "Which source best supports the key claim, and why?" },
+  {
+    id: "intuition",
+    label: "Build intuition",
+    prompt: "Explain this another way with a simple analogy.",
+  },
+  {
+    id: "example",
+    label: "Work an example",
+    prompt: "Walk me through one concrete example step by step.",
+  },
+  {
+    id: "check",
+    label: "Check understanding",
+    prompt: "Ask me one short question to check my understanding.",
+  },
 ];
 
 const FinalInputArea: FC<TInputAreaProps> = ({
@@ -41,7 +51,11 @@ const FinalInputArea: FC<TInputAreaProps> = ({
   const [reportedEdit, setReportedEdit] = useState(false);
   const moves =
     signedIn && nextRep
-      ? [{ id: "continue", label: "Continue your rep", prompt: nextRep }, ...universalMoves]
+      ? [
+          { id: "continue", label: "Continue your rep", prompt: nextRep },
+          universalMoves[1],
+          universalMoves[2],
+        ]
       : universalMoves;
 
   useEffect(() => {
@@ -79,13 +93,21 @@ const FinalInputArea: FC<TInputAreaProps> = ({
       <div className="journey-rail-wrap">
         <div className="journey-rail-heading">
           <span className="prompt-label">Choose your next move</span>
-          <span>Swipe or use Tab</span>
+          <span>Three clear paths</span>
         </div>
-        <div className="journey-rail" role="group" aria-label="Learning journeys">
+        <div
+          className="journey-rail"
+          role="group"
+          aria-label="Learning journeys"
+        >
           {moves.map((move) => (
             <button
               key={move.id}
-              className={selectedMove === move.id ? "journey-move journey-move-active" : "journey-move"}
+              className={
+                selectedMove === move.id
+                  ? "journey-move journey-move-active"
+                  : "journey-move"
+              }
               type="button"
               aria-pressed={selectedMove === move.id}
               onClick={() => {
@@ -101,7 +123,9 @@ const FinalInputArea: FC<TInputAreaProps> = ({
           ))}
         </div>
       </div>
-      <label className="prompt-label" htmlFor="follow-up">Ask a follow-up</label>
+      <label className="prompt-label" htmlFor="follow-up">
+        Ask a follow-up
+      </label>
       <div className="prompt-row">
         <textarea
           id="follow-up"

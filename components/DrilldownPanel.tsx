@@ -2,19 +2,22 @@
 
 import { useState } from "react";
 import type { DrilldownResult } from "@/utils/wolfram";
+import { isRetryableDrilldownStatus } from "@/utils/drilldownEligibility";
 
 type State =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "ok"; data: DrilldownResult }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; retryable: boolean };
 
 export default function DrilldownPanel({
   query,
   signedIn,
+  onFallback,
 }: {
   query: string;
   signedIn: boolean;
+  onFallback: () => void;
 }) {
   const [state, setState] = useState<State>({ status: "idle" });
 
@@ -31,12 +34,17 @@ export default function DrilldownPanel({
         setState({
           status: "error",
           message: body?.error ?? "Wolfram|Alpha could not compute that.",
+          retryable: isRetryableDrilldownStatus(response.status),
         });
         return;
       }
       setState({ status: "ok", data: body });
     } catch {
-      setState({ status: "error", message: "Drilldown lookup failed." });
+      setState({
+        status: "error",
+        message: "The computation service is temporarily unavailable.",
+        retryable: true,
+      });
     }
   };
 
@@ -46,7 +54,9 @@ export default function DrilldownPanel({
     const lines = [
       `# Drilldown: ${query}`,
       "",
-      data.interpretation ? `**Input interpretation:** ${data.interpretation}` : "",
+      data.interpretation
+        ? `**Input interpretation:** ${data.interpretation}`
+        : "",
       data.result ? `**Result:** ${data.result}` : "",
       data.websiteUrl ? `\nSource: ${data.websiteUrl}` : "",
     ].filter(Boolean);
@@ -81,18 +91,38 @@ export default function DrilldownPanel({
       {state.status === "error" && (
         <div className="drilldown-error">
           <p>{state.message}</p>
-          <button className="secondary-button" type="button" onClick={() => void run()}>
-            Try again
-          </button>
+          {state.retryable ? (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => void run()}
+            >
+              Try again
+            </button>
+          ) : (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={onFallback}
+            >
+              Work an example instead
+            </button>
+          )}
         </div>
       )}
       {state.status === "ok" && (
         <div className="drilldown-result">
-          <p className="drilldown-source-label">Wolfram|Alpha computed result</p>
+          <p className="drilldown-source-label">
+            Wolfram|Alpha computed result
+          </p>
           {state.data.interpretation && (
-            <p className="drilldown-interpretation">{state.data.interpretation}</p>
+            <p className="drilldown-interpretation">
+              {state.data.interpretation}
+            </p>
           )}
-          {state.data.result && <p className="drilldown-value">{state.data.result}</p>}
+          {state.data.result && (
+            <p className="drilldown-value">{state.data.result}</p>
+          )}
           {state.data.images.length > 0 && (
             // eslint-disable-next-line @next/next/no-img-element -- Wolfram-hosted image, dimensions are unknown ahead of fetch.
             <img
@@ -112,11 +142,17 @@ export default function DrilldownPanel({
             </a>
           )}
           {signedIn ? (
-            <button className="secondary-button" type="button" onClick={download}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={download}
+            >
               Download drilldown
             </button>
           ) : (
-            <p className="drilldown-signin-hint">Sign in to save and download this.</p>
+            <p className="drilldown-signin-hint">
+              Sign in to save and download this.
+            </p>
           )}
         </div>
       )}

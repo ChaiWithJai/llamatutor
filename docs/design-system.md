@@ -1,6 +1,6 @@
 # Dharmic Data Tutor design system
 
-Version: 1.0.0
+Version: 1.1.0
 
 This product inherits the live Dharmic Data identity while giving learning
 states their own clear semantics. The system is intentionally bright, direct,
@@ -79,14 +79,29 @@ These are mechanism claims, not outcome claims.
 
 ### Learning session
 
-The conversation and named sources remain visible together. Learner messages
-use the level color; tutor responses use the learning mark. Source failure has
-an explicit unverified state and never pretends grounding succeeded.
+The active learning card is the session canvas, not one panel in a dashboard.
+In the initial reading state it occupies at least 80% of the usable session
+area at compact and laptop widths. Named sources open as a reversible overlay;
+practice and follow-up tools live in a compact two-action dock and disclose
+only when requested. The card therefore keeps its width and reading height
+while every supporting job remains one action away.
+
+Completed responses render as bounded, keyboard-operable carousel cards.
+Headings, lists, tables, code, quotations, and links use the shared markdown
+renderer; a conservative normalization pass repairs streamed tables that arrive
+on one line without reinterpreting ambiguous pipe-delimited prose.
+
+Wolfram drilldown appears only for a named computational job or explicit
+expression. A non-computable provider response offers “Work an example
+instead”; retry is reserved for transient failures.
+
+Learner messages use the level color. Source failure has an explicit unverified
+state and never pretends grounding succeeded.
 
 ### Coaching panel
 
-Signed-in learners see one concrete practice rep beside the lesson. Completing
-it produces warm, direct feedback and a single next rep. The panel describes a
+Signed-in learners can disclose one concrete practice rep from the session
+dock. Completing it produces warm, direct feedback and a single next rep. The panel describes a
 streak as practice history and never presents it as a grade or mastery score.
 `StreakBadge` and `NextRepCard` are shared components. They use the ritual
 accent so practice state remains distinct from lessons and sources.

@@ -46,10 +46,34 @@ export default function CoachPanel({
           role="img"
           aria-label="Learn, practice, get feedback, and continue"
         >
-          <span />
-          <span />
-          <span />
-          <span />
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <path className="coach-loop-path" d="M18 45A22 22 0 1 1 48 17" />
+            <path className="coach-loop-arrow" d="m43 12 7 3-3 7" />
+            <circle
+              className="coach-loop-node coach-loop-node-1"
+              cx="17"
+              cy="44"
+              r="5"
+            />
+            <circle
+              className="coach-loop-node coach-loop-node-2"
+              cx="16"
+              cy="23"
+              r="5"
+            />
+            <circle
+              className="coach-loop-node coach-loop-node-3"
+              cx="34"
+              cy="12"
+              r="5"
+            />
+            <circle
+              className="coach-loop-node coach-loop-node-4"
+              cx="49"
+              cy="28"
+              r="5"
+            />
+          </svg>
         </span>
         <strong>Keep a goal and return to your next rep.</strong>
         <button className="secondary-button" type="button" onClick={onSignIn}>

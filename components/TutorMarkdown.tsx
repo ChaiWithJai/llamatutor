@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { normalizeTutorMarkdown } from "@/utils/tutorMarkdown";
 
 export default function TutorMarkdown({ children }: { children: string }) {
   return (
@@ -13,7 +14,7 @@ export default function TutorMarkdown({ children }: { children: string }) {
         ),
       }}
     >
-      {children}
+      {normalizeTutorMarkdown(children)}
     </ReactMarkdown>
   );
 }

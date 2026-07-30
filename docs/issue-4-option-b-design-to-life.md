@@ -46,16 +46,16 @@ practice history. It is not a measure of knowledge.
 
 ## Jobs to be done
 
-| ID | Learner need | Product response | Evidence |
-| --- | --- | --- | --- |
-| JTBD 1 | I want a clear explanation at my level. | The learner chooses a topic and one of six levels. | `components/InitialInputArea.tsx:22`, `app/page.tsx:286` |
-| JTBD 2 | I want to inspect what informed the lesson. | The session shows named source links or an unverified warning. | `components/Sources.tsx:13`, `app/page.tsx:250` |
-| JTBD 3 | I want to practice instead of only reading. | A signed-in learner gets one short practice rep beside the lesson. | `components/CoachPanel.tsx:84`, `app/page.tsx:132` |
-| JTBD 4 | I want useful feedback and one clear next action. | The tutor returns focused feedback and the server saves a next rep. | `app/page.tsx:346`, `netlify/functions/coach.ts:292` |
-| JTBD 5 | I want to continue on another visit or device. | The landing page shows the active goal, streak, and pending rep after sign-in. | `components/ResumeBanner.tsx:5`, `netlify/functions/coach.ts:154` |
-| JTBD 6 | I want failures to be clear and recoverable. | Source and model failures keep the session usable and show retry controls. | `app/page.tsx:242`, `app/page.tsx:253` |
-| JTBD 7 | I want to control my saved data. | The account dialog supports export and deletion. | `components/AccountDialog.tsx:32`, `netlify/functions/coach.ts:105` |
-| JTBD 8 | I want to finish a session on a phone or with a keyboard. | The layout keeps the composer reachable and exposes mobile source overflow. | `app/globals.css:146`, `app/globals.css:973` |
+| ID     | Learner need                                              | Product response                                                               | Evidence                                                            |
+| ------ | --------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| JTBD 1 | I want a clear explanation at my level.                   | The learner chooses a topic and one of six levels.                             | `components/InitialInputArea.tsx:22`, `app/page.tsx:286`            |
+| JTBD 2 | I want to inspect what informed the lesson.               | The session shows named source links or an unverified warning.                 | `components/Sources.tsx:13`, `app/page.tsx:250`                     |
+| JTBD 3 | I want to practice instead of only reading.               | A signed-in learner gets one short practice rep beside the lesson.             | `components/CoachPanel.tsx:84`, `app/page.tsx:132`                  |
+| JTBD 4 | I want useful feedback and one clear next action.         | The tutor returns focused feedback and the server saves a next rep.            | `app/page.tsx:346`, `netlify/functions/coach.ts:292`                |
+| JTBD 5 | I want to continue on another visit or device.            | The landing page shows the active goal, streak, and pending rep after sign-in. | `components/ResumeBanner.tsx:5`, `netlify/functions/coach.ts:154`   |
+| JTBD 6 | I want failures to be clear and recoverable.              | Source and model failures keep the session usable and show retry controls.     | `app/page.tsx:242`, `app/page.tsx:253`                              |
+| JTBD 7 | I want to control my saved data.                          | The account dialog supports export and deletion.                               | `components/AccountDialog.tsx:32`, `netlify/functions/coach.ts:105` |
+| JTBD 8 | I want to finish a session on a phone or with a keyboard. | The layout keeps the composer reachable and exposes mobile source overflow.    | `app/globals.css:146`, `app/globals.css:973`                        |
 
 ## Screen and state map
 
@@ -144,12 +144,12 @@ action visible. The page never presents an unverified lesson as sourced.
 The browser does not send a learner ID. The coaching function reads the
 authenticated Identity user and scopes every query to that ID.
 
-| Method | Path | Result |
-| --- | --- | --- |
-| `GET` | `/api/coach` | Current profile, active goal, pending rep, recent reps, and session count |
-| `GET` | `/api/coach?export=1` | Download of all stored learning data |
-| `POST` | `/api/coach` | Start a goal, ensure a pending rep, or complete a rep |
-| `DELETE` | `/api/coach` | Delete all learning data for the signed in user |
+| Method   | Path                  | Result                                                                    |
+| -------- | --------------------- | ------------------------------------------------------------------------- |
+| `GET`    | `/api/coach`          | Current profile, active goal, pending rep, recent reps, and session count |
+| `GET`    | `/api/coach?export=1` | Download of all stored learning data                                      |
+| `POST`   | `/api/coach`          | Start a goal, ensure a pending rep, or complete a rep                     |
+| `DELETE` | `/api/coach`          | Delete all learning data for the signed in user                           |
 
 The database enforces one active goal per learner and one pending rep per goal.
 Rep completion, session creation, next rep creation, and streak update happen
@@ -185,21 +185,24 @@ rep.
 
 ## Blackbox acceptance plan
 
-| Given | When | Expected result |
-| --- | --- | --- |
-| Signed out learner | Starts a topic | A lesson streams and the coaching panel offers sign in |
-| Source service failure | Starts a topic | The lesson is labeled unverified and source retry remains visible |
-| Model interruption | A response has partly streamed | Existing text remains and tutor retry is visible |
-| Long lesson | The response exceeds the viewport | The reply composer remains reachable |
-| Mobile viewport | More than three sources exist | A visible edge treatment and horizontal scrolling show that more sources exist |
-| Signed in learner with an active goal | Opens the landing page | The active topic, streak, pending rep, and resume action appear |
-| Signed in learner | Completes a practice rep | Feedback, an updated streak, and one next rep appear |
-| Same learner | Reloads after completion | The saved next rep appears in the resume banner |
-| Same learner | Completes two reps on one day | The streak increments only once |
-| Keyboard user | Runs the public lesson flow | Every action is reachable and focus remains visible |
-| Reduced motion user | Uses an animated state | Nonessential animation is suppressed |
-| Learner requests export | Uses the account dialog | A JSON file containing only that learner's data downloads |
-| Learner confirms deletion | Uses the account dialog | Saved learning data is gone after reload |
+| Given                                 | When                              | Expected result                                                           |
+| ------------------------------------- | --------------------------------- | ------------------------------------------------------------------------- |
+| Signed out learner                    | Starts a topic                    | A lesson streams and the coaching panel offers sign in                    |
+| Source service failure                | Starts a topic                    | The lesson is labeled unverified and source retry remains visible         |
+| Model interruption                    | A response has partly streamed    | Existing text remains and tutor retry is visible                          |
+| Long lesson                           | The response exceeds the viewport | Follow-up tools remain reachable from the compact dock                    |
+| Mobile viewport                       | More than three sources exist     | The source overlay scrolls independently and closes back to the same card |
+| Compact or laptop reading state       | A lesson finishes streaming       | The active card occupies at least 80% of the usable session canvas        |
+| Learner asks what to do next          | Opens follow-up tools             | Exactly three distinct moves fit without horizontal scrolling             |
+| Conceptual lesson card                | Learner scans its actions         | No unsupported Wolfram drilldown is offered                               |
+| Signed in learner with an active goal | Opens the landing page            | The active topic, streak, pending rep, and resume action appear           |
+| Signed in learner                     | Completes a practice rep          | Feedback, an updated streak, and one next rep appear                      |
+| Same learner                          | Reloads after completion          | The saved next rep appears in the resume banner                           |
+| Same learner                          | Completes two reps on one day     | The streak increments only once                                           |
+| Keyboard user                         | Runs the public lesson flow       | Every action is reachable and focus remains visible                       |
+| Reduced motion user                   | Uses an animated state            | Nonessential animation is suppressed                                      |
+| Learner requests export               | Uses the account dialog           | A JSON file containing only that learner's data downloads                 |
+| Learner confirms deletion             | Uses the account dialog           | Saved learning data is gone after reload                                  |
 
 ## Implementation inventory
 
