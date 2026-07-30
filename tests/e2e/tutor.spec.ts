@@ -650,6 +650,46 @@ test("keyboard learner can start and continue a lesson", async ({ page }) => {
   await expect(page.getByText("Give me one more example.")).toBeVisible();
 });
 
+test("keyboard-only learner completes the Option B coaching loop", async ({
+  page,
+}) => {
+  await mockTutor(page, {
+    answer: "Focused feedback with one concrete next step.",
+  });
+  const coachActions = await mockSignedInCoach(page);
+  await page.goto("/");
+
+  const topicField = page.getByLabel("What do you want to understand?");
+  await topicField.focus();
+  await page.keyboard.type("How does compound interest work?");
+
+  const startButton = page
+    .getByRole("button", { name: "Start learning" })
+    .last();
+  await startButton.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByText("A named learning source")).toBeVisible();
+  const practiceAttempt = page.getByLabel("Try it now");
+  await practiceAttempt.focus();
+  await page.keyboard.type(
+    "Interest earns additional interest after each compounding period.",
+  );
+
+  const saveButton = page.getByRole("button", {
+    name: "Get feedback and save my next rep",
+  });
+  await saveButton.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByText("Rep complete")).toBeVisible();
+  await expect(page.getByText("4-day showing-up streak")).toBeVisible();
+  await expect(
+    page.getByText(/Apply How does compound interest work\? to a new example/),
+  ).toBeVisible();
+  expect(coachActions).toEqual(["start_goal", "ensure_rep", "complete_rep"]);
+});
+
 test("reduced motion removes nonessential animation", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
