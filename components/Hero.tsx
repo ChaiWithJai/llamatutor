@@ -25,17 +25,9 @@ const Hero: FC<THeroProps> = ({
 }) => {
   return (
     <section className="tutor-hero" aria-label="Start a learning session">
-      <p className="eyebrow">
-        <span className="eyebrow-dot" aria-hidden="true" />
-        Sources you can inspect · practice you can keep
-      </p>
       <h1 className="hero-title" id="hero-title">
         What do you want to <span className="highlight">understand?</span>
       </h1>
-      <p className="hero-description">
-        Ask anything. Get a clear explanation grounded in named sources, then
-        try one useful practice rep.
-      </p>
 
       {resumeContent}
 
