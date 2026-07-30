@@ -1,0 +1,157 @@
+{
+  "personas": [
+    {
+      "persona": "Curious learner",
+      "business_drivers": [
+        "Understand a topic now",
+        "Control explanation depth",
+        "Inspect sources"
+      ],
+      "differentiated_messaging": {
+        "problem": "Generic AI answers are hard to calibrate and verify.",
+        "reality": "The learner has to rewrite prompts and search separately.",
+        "solution": "One topic-and-level flow keeps explanations and named sources together.",
+        "proof": "The session exposes the level, streaming conversation, and source links together."
+      },
+      "site_value": "A low-friction way to begin learning.",
+      "service_value": "A continuing conversation at the chosen level."
+    },
+    {
+      "persona": "Teacher, facilitator, or parent",
+      "business_drivers": [
+        "Age-appropriate starting point",
+        "Source visibility",
+        "Honest AI limits"
+      ],
+      "differentiated_messaging": {
+        "problem": "A useful explanation still needs a clear level and evidence.",
+        "reality": "Generic chat interfaces hide both in prompt history.",
+        "solution": "Level is a first-class control and provenance remains beside the response.",
+        "proof": "Every session shows its topic and either named sources or an explicit unverified state."
+      },
+      "site_value": "A transparent demonstration tool.",
+      "service_value": "A conversational draft to review with the learner."
+    },
+    {
+      "persona": "Open-source builder",
+      "business_drivers": [
+        "Inspect implementation",
+        "Reproduce deployment",
+        "Understand limits"
+      ],
+      "differentiated_messaging": {
+        "problem": "Demo claims often outpace the inspectable implementation.",
+        "reality": "The inherited site linked to a different upstream repository.",
+        "solution": "The product publishes its real source, design system, health route, and deployment runbook.",
+        "proof": "Those artifacts are versioned in the public repository."
+      },
+      "site_value": "Inspect the working path.",
+      "service_value": "Fork and extend the explainer safely."
+    }
+  ],
+  "journeys": [
+    {
+      "name": "Start a learning session",
+      "page": "/?topic=&level=",
+      "user_goal": "Receive a level-appropriate introduction.",
+      "business_goal": "Complete one useful and trustworthy interaction.",
+      "primary_cta": "Start learning",
+      "state_model": "Topic and level in URL; messages and sources in session state.",
+      "friction": "Requires working Together and Exa provider keys."
+    },
+    {
+      "name": "Continue a session",
+      "page": "/?topic=&level=",
+      "user_goal": "Clarify or deepen the explanation.",
+      "business_goal": "Demonstrate dialogue beyond one-shot generation.",
+      "primary_cta": "Send follow-up",
+      "state_model": "Conversation remains in client session state.",
+      "friction": "Conversation does not persist across reloads."
+    },
+    {
+      "name": "Inspect provenance",
+      "page": "/?topic=&level=",
+      "user_goal": "Open material that informed the answer.",
+      "business_goal": "Demonstrate evidence-led product behavior.",
+      "primary_cta": "Open source",
+      "state_model": "Source results remain visible beside the conversation.",
+      "friction": "Search-provider failure reduces the session to an explicitly unverified explanation."
+    }
+  ],
+  "good_examples": [
+    {
+      "surface": "Hero: Learn Something Useful. See Where It Comes From.",
+      "why_brand_aligned": "Pairs useful action with visible evidence.",
+      "why_jtbd_aligned": "Names the learning and verification jobs.",
+      "evidence": "components/Hero.tsx"
+    },
+    {
+      "surface": "Sources unavailable state",
+      "why_brand_aligned": "States an honest limit.",
+      "why_jtbd_aligned": "Tells the learner how to treat the answer.",
+      "evidence": "components/Sources.tsx"
+    }
+  ],
+  "bad_examples": [
+    {
+      "surface": "Legacy Your Personal Tutor hero",
+      "why_brand_misaligned": "Generic and unsupported by inspectable proof.",
+      "why_jtbd_misaligned": "Implies broad personalization beyond topic and level.",
+      "severity": "high",
+      "evidence": "Replaced baseline in components/Hero.tsx"
+    },
+    {
+      "surface": "Legacy Powered by Llama 3.1 badge",
+      "why_brand_misaligned": "Stale model claim.",
+      "why_jtbd_misaligned": "Provider branding does not explain the learner's task.",
+      "severity": "high",
+      "evidence": "Replaced baseline in components/Hero.tsx"
+    }
+  ],
+  "focus_areas": [
+    {
+      "area": "Messaging clarity",
+      "desired_state": "Explain the current mechanism and limit.",
+      "current_state": "Implemented in hero, proof strip, and failure copy.",
+      "delta": "Validate with real users."
+    },
+    {
+      "area": "Trust",
+      "desired_state": "Named sources or explicit unverified state.",
+      "current_state": "Implemented.",
+      "delta": "Add dated evaluation fixtures."
+    },
+    {
+      "area": "Coaching direction",
+      "desired_state": "No implied methodology before a decision.",
+      "current_state": "Issue #1 remains open and UI is explainer-first.",
+      "delta": "User selection among A/B/C."
+    }
+  ],
+  "immediate_opportunities": [
+    {
+      "opportunity": "Publish branded staging and production builds with real provider keys.",
+      "impact": "Makes the complete journey publicly usable.",
+      "effort": "medium"
+    },
+    {
+      "opportunity": "Add a fixed provider and UI evaluation set.",
+      "impact": "Creates dated proof for core learning paths.",
+      "effort": "medium"
+    }
+  ],
+  "long_term_ideas": [
+    {
+      "idea": "Add a separate practice-session model after issue #1 is decided.",
+      "refactor_reason": "Coaching needs persistence, assigned reps, and return cadence that the explainer does not have.",
+      "impact": "Evolves the product without misrepresenting current capability.",
+      "effort": "high"
+    },
+    {
+      "idea": "Version the design tokens for reuse.",
+      "refactor_reason": "Other Dharmic Data products currently duplicate brand values.",
+      "impact": "Improves cross-product consistency.",
+      "effort": "medium"
+    }
+  ]
+}

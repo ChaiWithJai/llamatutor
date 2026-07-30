@@ -1,8 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import FinalInputArea from "./FinalInputArea";
-import { useEffect, useRef, useState } from "react";
-import simpleLogo from "../public/simple-logo.png";
-import Image from "next/image";
+import { ReactNode, useEffect, useRef, useState } from "react";
 
 export default function Chat({
   messages,
@@ -12,7 +10,7 @@ export default function Chat({
   setPromptValue,
   setMessages,
   handleChat,
-  topic,
+  coachSlot,
 }: {
   messages: { role: string; content: string }[];
   disabled: boolean;
@@ -22,95 +20,78 @@ export default function Chat({
   setMessages: React.Dispatch<
     React.SetStateAction<{ role: string; content: string }[]>
   >;
-  handleChat: () => void;
+  handleChat: (messages?: { role: string; content: string }[]) => void;
   topic: string;
+  coachSlot?: ReactNode;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
   const [didScrollToBottom, setDidScrollToBottom] = useState(true);
 
-  function scrollToBottom() {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }
-
   useEffect(() => {
     if (loading || didScrollToBottom) {
-      scrollToBottom();
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [didScrollToBottom, messages, loading]);
 
   useEffect(() => {
-    let el = scrollableContainerRef.current;
-    if (!el) {
-      return;
-    }
+    const element = scrollableContainerRef.current;
+    if (!element) return;
 
-    function handleScroll() {
-      if (scrollableContainerRef.current) {
-        const { scrollTop, scrollHeight, clientHeight } =
-          scrollableContainerRef.current;
-        setDidScrollToBottom(scrollTop + clientHeight >= scrollHeight);
-      }
-    }
-
-    el.addEventListener("scroll", handleScroll);
-
-    return () => {
-      el.removeEventListener("scroll", handleScroll);
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = element;
+      setDidScrollToBottom(scrollTop + clientHeight >= scrollHeight - 4);
     };
+
+    element.addEventListener("scroll", handleScroll);
+    return () => element.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
-    <div className="flex grow flex-col gap-4 overflow-hidden">
-      <div className="flex grow flex-col overflow-hidden lg:p-4">
-        <p className="uppercase text-gray-900">
-          <b>Topic: </b>
-          {topic}
-        </p>
-        <div
-          ref={scrollableContainerRef}
-          className="mt-2 overflow-y-scroll rounded-lg border border-solid border-[#C2C2C2] bg-white px-5 lg:p-7"
-        >
-          {messages.length > 2 ? (
-            <div className="prose-sm max-w-5xl lg:prose lg:max-w-full">
-              {messages.slice(2).map((message, index) =>
-                message.role === "assistant" ? (
-                  <div className="relative w-full" key={index}>
-                    <Image
-                      src={simpleLogo}
-                      alt=""
-                      className="absolute left-0 top-0 !my-0 size-7"
-                    />
-                    <ReactMarkdown className="w-full pl-10">
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  <p
-                    key={index}
-                    className="ml-auto w-fit rounded-xl bg-blue-500 p-4 font-medium text-white"
-                  >
-                    {message.content}
-                  </p>
-                ),
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          ) : (
-            <div className="flex w-full flex-col gap-4 py-5">
-              {Array.from(Array(10).keys()).map((i) => (
-                <div
-                  key={i}
-                  className={`${i < 5 && "hidden sm:block"} h-10 animate-pulse rounded-md bg-gray-300`}
-                  style={{ animationDelay: `${i * 0.05}s` }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+    <section className="chat-panel" aria-label="Learning conversation">
+      <div
+        ref={scrollableContainerRef}
+        className="message-list"
+        aria-live="polite"
+        aria-busy={loading}
+      >
+        {messages.length > 2 ? (
+          <div className="prose max-w-none">
+            {messages.slice(2).map((message, index) =>
+              message.role === "assistant" ? (
+                <div className="assistant-message" key={index}>
+                  <span className="assistant-mark" aria-hidden="true">
+                    D
+                  </span>
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <p key={index} className="user-message">
+                  {message.content}
+                </p>
+              ),
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        ) : (
+          <div
+            className="flex flex-col gap-3"
+            aria-label="Preparing explanation"
+          >
+            {Array.from({ length: 7 }, (_, index) => (
+              <div
+                key={index}
+                className="loading-line"
+                style={{ animationDelay: `${index * 0.08}s` }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="bg-white lg:p-4">
+      {coachSlot}
+
+      <div className="chat-composer">
         <FinalInputArea
           disabled={disabled}
           promptValue={promptValue}
@@ -120,6 +101,6 @@ export default function Chat({
           setMessages={setMessages}
         />
       </div>
-    </div>
+    </section>
   );
 }

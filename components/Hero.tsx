@@ -1,9 +1,7 @@
-import Image from "next/image";
 import { FC } from "react";
-import desktopImg from "../public/desktop-screenshot.png";
-import mobileImg from "../public/screenshot-mobile.png";
 import InitialInputArea from "./InitialInputArea";
 import { suggestions } from "@/utils/utils";
+import { ReactNode } from "react";
 
 type THeroProps = {
   promptValue: string;
@@ -12,6 +10,7 @@ type THeroProps = {
   ageGroup: string;
   setAgeGroup: React.Dispatch<React.SetStateAction<string>>;
   handleInitialChat: () => void;
+  resumeContent?: ReactNode;
 };
 
 const Hero: FC<THeroProps> = ({
@@ -21,99 +20,70 @@ const Hero: FC<THeroProps> = ({
   ageGroup,
   setAgeGroup,
   handleInitialChat,
+  resumeContent,
 }) => {
-  const handleClickSuggestion = (value: string) => {
-    setPromptValue(value);
-  };
-
   return (
-    <>
-      <div className="mx-auto mt-10 flex max-w-3xl flex-col items-center justify-center sm:mt-36">
-        <a
-          className="mb-4 inline-flex h-7 shrink-0 items-center gap-[9px] rounded-[50px] border-[0.5px] border-solid border-[#E6E6E6] bg-[rgba(234,238,255,0.65)] bg-white px-5 py-4 shadow-[0px_1px_1px_0px_rgba(0,0,0,0.25)]"
-          href="https://togetherai.link/?utm_source=llamatutor&utm_medium=referral&utm_campaign=example-app"
-          target="_blank"
-        >
-          <Image
-            unoptimized
-            src="/togethercomputer.png"
-            alt="hero"
-            width={20}
-            height={20}
-          />
-          <span className="text-center text-sm font-medium italic">
-            Powered by <b>Llama 3.1</b> and <b>Together AI</b>
-          </span>
-        </a>
-        <h2 className="mt-2 bg-custom-gradient bg-clip-text text-center text-4xl font-medium tracking-tight text-gray-900 sm:text-6xl">
-          Your Personal{" "}
-          <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text font-bold text-transparent">
-            Tutor
-          </span>
-        </h2>
-        <p className="mt-4 text-balance text-center text-sm sm:text-base">
-          Enter a topic you want to learn about along with the education level
-          you want to be taught at and generate a personalized tutor tailored to
-          you!
-        </p>
+    <section className="tutor-hero" aria-labelledby="hero-title">
+      <p className="eyebrow">
+        <span className="eyebrow-dot" aria-hidden="true" />A Dharmic Data
+        learning experiment
+      </p>
+      <h1 className="hero-title" id="hero-title">
+        Learn{" "}
+        <span className="highlight highlight-learning">Something Useful.</span>{" "}
+        See{" "}
+        <span className="highlight highlight-proof">Where It Comes From.</span>
+      </h1>
+      <p className="hero-description">
+        Name a topic and choose a learning level. The tutor finds web sources,
+        explains the idea clearly, and stays with you for follow-up questions.
+      </p>
 
-        <div className="mt-4 w-full pb-6">
-          <InitialInputArea
-            promptValue={promptValue}
-            handleInitialChat={handleInitialChat}
-            setPromptValue={setPromptValue}
-            handleChat={handleChat}
-            ageGroup={ageGroup}
-            setAgeGroup={setAgeGroup}
-          />
-        </div>
+      {resumeContent}
 
-        <div className="flex flex-wrap items-center justify-center gap-2.5 pb-[30px] lg:flex-nowrap lg:justify-normal">
-          {suggestions.map((item) => (
-            <div
-              className="flex h-[35px] cursor-pointer items-center justify-center gap-[5px] rounded border border-solid border-[#C1C1C1] px-2.5 py-2 transition hover:bg-gray-200"
-              onClick={() => handleClickSuggestion(item?.name)}
-              key={item.id}
-            >
-              <Image
-                src={item.icon}
-                alt={item.name}
-                width={18}
-                height={16}
-                className="w-[18px]"
-              />
-              <span className="text-sm font-light leading-[normal] text-[#1B1B16]">
-                {item.name}
-              </span>
-            </div>
-          ))}
-        </div>
-        <p className="text-center text-sm font-light leading-[normal] text-[#1B1B16]">
-          Fully open source!{" "}
-          <span className="text-sm font-medium underline">
-            <a
-              href="https://github.com/Nutlope/llamatutor"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Star it on Github.
-            </a>
-          </span>
-        </p>
-      </div>
-      <div className="mx-auto max-w-7xl">
-        <Image
-          src={desktopImg}
-          alt="hero"
-          className="my-32 max-w-full max-lg:hidden"
-        />
-        <Image
-          src={mobileImg}
-          alt="hero"
-          className="my-5 max-w-full lg:hidden"
+      <div id="learn">
+        <InitialInputArea
+          promptValue={promptValue}
+          handleInitialChat={handleInitialChat}
+          setPromptValue={setPromptValue}
+          handleChat={handleChat}
+          ageGroup={ageGroup}
+          setAgeGroup={setAgeGroup}
         />
       </div>
-    </>
+
+      <div className="suggestions" role="group" aria-label="Example topics">
+        {suggestions.map((item) => (
+          <button
+            className="suggestion-button"
+            onClick={() => setPromptValue(item.name)}
+            type="button"
+            key={item.id}
+          >
+            {item.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="proof-strip" id="how-it-works">
+        <div className="proof-item">
+          <strong>Start with a topic</strong>
+          <span>Bring the question you actually want to understand.</span>
+        </div>
+        <div className="proof-item">
+          <strong>Choose your level</strong>
+          <span>Control the vocabulary and depth of the explanation.</span>
+        </div>
+        <div className="proof-item">
+          <strong>Inspect sources</strong>
+          <span>Named webpages stay beside the learning conversation.</span>
+        </div>
+        <div className="proof-item">
+          <strong>Ask what follows</strong>
+          <span>Clarify, challenge, and keep going in the same session.</span>
+        </div>
+      </div>
+    </section>
   );
 };
 

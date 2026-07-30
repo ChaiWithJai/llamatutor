@@ -1,0 +1,69 @@
+:root {
+  /* Global palette — shared with the live Dharmic Data family. */
+  --dd-color-cream-100: #fefae6;
+  --dd-color-cream-200: #f4efe5;
+  --dd-color-ink-900: #151515;
+  --dd-color-white: #ffffff;
+  --dd-color-coral-500: #f25144;
+  --dd-color-orange-500: #ff723a;
+  --dd-color-green-500: #11a858;
+  --dd-color-yellow-500: #ffea00;
+  --dd-color-blue-500: #5d9bff;
+  --dd-color-pink-500: #ff64e0;
+  --dd-color-gray-100: #f3f3f3;
+  --dd-color-gray-300: #d4d4d4;
+  --dd-color-gray-600: #5d6c7b;
+
+  --dd-space-1: 0.25rem;
+  --dd-space-2: 0.5rem;
+  --dd-space-3: 0.75rem;
+  --dd-space-4: 1rem;
+  --dd-space-5: 1.25rem;
+  --dd-space-6: 1.5rem;
+  --dd-space-8: 2rem;
+  --dd-space-10: 2.5rem;
+  --dd-space-12: 3rem;
+  --dd-space-16: 4rem;
+
+  --dd-radius-sm: 0.75rem;
+  --dd-radius-md: 1.25rem;
+  --dd-radius-lg: 2rem;
+  --dd-radius-pill: 999px;
+
+  --dd-shadow-card: 0 1rem 3rem rgb(21 21 21 / 10%);
+  --dd-shadow-lift: 0 0.5rem 0 var(--dd-color-ink-900);
+
+  --dd-duration-fast: 160ms;
+  --dd-duration-base: 240ms;
+  --dd-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Semantic aliases — components reference these, never raw palette values. */
+  --color-canvas: var(--dd-color-cream-100);
+  --color-surface: var(--dd-color-white);
+  --color-surface-strong: var(--dd-color-ink-900);
+  --color-text: var(--dd-color-ink-900);
+  --color-text-muted: var(--dd-color-gray-600);
+  --color-border: var(--dd-color-ink-900);
+  --color-action: var(--dd-color-ink-900);
+  --color-action-text: var(--dd-color-white);
+  --color-focus: var(--dd-color-blue-500);
+  --color-success: var(--dd-color-green-500);
+  --color-warning: var(--dd-color-yellow-500);
+  --color-danger: var(--dd-color-coral-500);
+  --color-accent-learning: var(--dd-color-green-500);
+  --color-accent-proof: var(--dd-color-orange-500);
+  --color-accent-level: var(--dd-color-blue-500);
+  --color-accent-followup: var(--dd-color-pink-500);
+
+  --font-body: var(--font-inter), Inter, sans-serif;
+  --font-display: var(--font-fredoka), Fredoka, sans-serif;
+
+  /* Component tokens. */
+  --button-bg-primary: var(--color-action);
+  --button-text-primary: var(--color-action-text);
+  --button-radius: var(--dd-radius-pill);
+  --field-bg: var(--color-surface);
+  --field-border: var(--color-border);
+  --card-bg: var(--color-surface);
+  --card-radius: var(--dd-radius-md);
+}
