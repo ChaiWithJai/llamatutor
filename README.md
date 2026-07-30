@@ -1,10 +1,10 @@
 <a href="https://www.llamatutor.com">
   <img alt="Llama Tutor" src="./public/og-image.png">
-  <h1 align="center">Llama Tutor</h1>
+  <h1 align="center">Dharmic Data Tutor</h1>
 </a>
 
 <p align="center">
-  An open source AI personal tutor. Powered by Llama 3 70B & Together.ai
+  A sourced AI tutor with a durable practice-and-feedback loop.
 </p>
 
 ## Tech stack
@@ -13,17 +13,35 @@
 - Together AI for LLM inference
 - Next.js app router with Tailwind
 - Exa.js for the search API
+- Netlify Identity for learner accounts
+- Netlify Database (Postgres) for goals, practice reps, sessions, and streaks
 - Helicone for observability
 - Plausible for website analytics
 
-## Cloning & running
+## Local development
 
-1. Fork or clone the repo
-2. Create an account at [Together AI](https://togetherai.link/?utm_source=llamatutor&utm_medium=referral&utm_campaign=example-app) for the LLM
-3. Create an account at [Exa](https://exa.ai/)
-4. Create an account at [Helicone](https://www.helicone.ai/) for observability
-5. Create a `.env` (use the `.example.env` for reference) and replace the API keys
-6. Run `npm install` and `npm run dev` to install dependencies and run locally
+1. Install Node.js 22 and enable Corepack.
+2. Create Together AI and Exa API keys.
+3. Copy `.example.env` to `.env` and add the keys. Helicone is optional.
+4. Run `pnpm install --frozen-lockfile`.
+5. Run `netlify dev` and open the local URL it prints. This supplies the
+   Netlify Identity and Database runtime context.
+
+For a production-shaped local check:
+
+```bash
+docker build --tag llamatutor:local .
+docker run --rm --env-file .env -p 127.0.0.1:3000:3000 llamatutor:local
+```
+
+The health endpoint is <http://localhost:3000/api/health>.
+
+## Deployment
+
+Production and deploy previews run on Netlify. The repository also retains a
+production Docker image and a health-checked DigitalOcean fallback. See
+[docs/deployment.md](docs/deployment.md) and the
+[Option B ADR](docs/adr/0002-option-b-netlify-identity-database.md).
 
 ## Future Tasks
 

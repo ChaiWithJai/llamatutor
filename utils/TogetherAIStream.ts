@@ -28,17 +28,37 @@ export interface TogetherAIStreamPayload {
 export async function TogetherAIStream(payload: TogetherAIStreamPayload) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
+  const togetherApiKey = process.env.TOGETHER_API_KEY;
 
-  const res = await fetch("https://together.helicone.ai/v1/chat/completions", {
+  if (!togetherApiKey) {
+    throw new Error("TOGETHER_API_KEY is required");
+  }
+
+  const heliconeApiKey = process.env.HELICONE_API_KEY;
+  const baseUrl = heliconeApiKey
+    ? "https://together.helicone.ai/v1"
+    : "https://api.together.ai/v1";
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${togetherApiKey}`,
+  };
+
+  if (heliconeApiKey) {
+    headers["Helicone-Auth"] = `Bearer ${heliconeApiKey}`;
+    headers["Helicone-Property-AppName"] = "llamatutor";
+  }
+
+  const res = await fetch(`${baseUrl}/chat/completions`, {
     headers: {
-      "Content-Type": "application/json",
-      "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
-      "Helicone-Property-AppName": "llamatutor",
-      Authorization: `Bearer ${process.env.TOGETHER_API_KEY ?? ""}`,
+      ...headers,
     },
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+  if (!res.ok) {
+    throw new Error(`Together API request failed with status ${res.status}`);
+  }
 
   const readableStream = new ReadableStream({
     async start(controller) {
@@ -49,20 +69,6 @@ export async function TogetherAIStream(payload: TogetherAIStreamPayload) {
           controller.enqueue(encoder.encode(data));
         }
       };
-
-      // optimistic error handling
-      if (res.status !== 200) {
-        const data = {
-          status: res.status,
-          statusText: res.statusText,
-          body: await res.text(),
-        };
-        console.log(
-          `Error: recieved non-200 status code, ${JSON.stringify(data)}`,
-        );
-        controller.close();
-        return;
-      }
 
       // stream response (SSE) from OpenAI may be fragmented into multiple chunks
       // this ensures we properly read chunks and invoke an event for each SSE event stream

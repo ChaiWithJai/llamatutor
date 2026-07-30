@@ -1,11 +1,5 @@
 const TypeAnimation = () => {
-  return (
-    <div className="loader pb-1">
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
-  );
+  return <span aria-label="Working">•••</span>;
 };
 
 export default TypeAnimation;

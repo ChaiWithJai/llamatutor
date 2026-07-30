@@ -1,0 +1,30 @@
+[build]
+  command = "pnpm build"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "11.9.0"
+
+# Protect the two metered AI endpoints from accidental or abusive bursts.
+# Netlify applies these limits at the edge, before the Next.js handlers run.
+[[redirects]]
+  from = "/api/getChat"
+  to = "/api/getChat"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    window_limit = 12
+    window_size = 60
+    aggregate_by = ["ip", "domain"]
+
+[[redirects]]
+  from = "/api/getSources"
+  to = "/api/getSources"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    window_limit = 20
+    window_size = 60
+    aggregate_by = ["ip", "domain"]

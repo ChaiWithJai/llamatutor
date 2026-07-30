@@ -1,0 +1,20 @@
+# Caddy runs on the host and owns ports 80/443. Values are supplied through
+# Caddy's systemd environment (for example, /etc/caddy/llamatutor.env).
+
+{$LLAMATUTOR_PRODUCTION_DOMAIN} {
+	reverse_proxy 127.0.0.1:3100
+}
+
+{$LLAMATUTOR_STAGING_DOMAIN} {
+	basic_auth {
+		{$STAGING_BASIC_AUTH_USER} {$STAGING_BASIC_AUTH_HASH}
+	}
+
+	reverse_proxy 127.0.0.1:3101
+}
+
+# During the edge-proxy migration, recreate writebook without host port 80/443,
+# expose its Puma port as 127.0.0.1:3080:3000, and preserve its data volume.
+{$WRITEBOOK_DOMAIN} {
+	reverse_proxy 127.0.0.1:3080
+}

@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
       }),
     });
   } catch (e) {
-    return new Response("Error. Answer stream failed.", { status: 202 });
+    console.error("Answer stream failed", e);
+    return Response.json({ error: "Answer stream failed." }, { status: 502 });
   }
 }
 
