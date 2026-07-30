@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { chunkIntoCards } from "@/utils/carousel";
 import DrilldownPanel from "@/components/DrilldownPanel";
 import TutorMarkdown from "@/components/TutorMarkdown";
+import { computableDrilldownQuery } from "@/utils/drilldownEligibility";
 
 function hostnameOf(url: string): string {
   try {
@@ -18,13 +19,18 @@ export default function CardCarousel({
   sources,
   signedIn,
   onInspectSource,
+  onWorkExample,
 }: {
   content: string;
   sources: { name: string; url: string }[];
   signedIn: boolean;
   onInspectSource?: (sourceUrl: string) => void;
+  onWorkExample: () => void;
 }) {
-  const cards = useMemo(() => chunkIntoCards(content, sources), [content, sources]);
+  const cards = useMemo(
+    () => chunkIntoCards(content, sources),
+    [content, sources],
+  );
   const [index, setIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
 
@@ -32,6 +38,7 @@ export default function CardCarousel({
 
   const clampedIndex = Math.min(index, cards.length - 1);
   const card = cards[clampedIndex];
+  const drilldownQuery = computableDrilldownQuery(card.title, card.body);
   const goTo = (next: number) => {
     setIndex(Math.max(0, Math.min(cards.length - 1, next)));
   };
@@ -60,7 +67,10 @@ export default function CardCarousel({
       }}
     >
       <div className="card-viewport">
-        <article className="carousel-card" aria-label={`Card ${clampedIndex + 1} of ${cards.length}`}>
+        <article
+          className="carousel-card"
+          aria-label={`Card ${clampedIndex + 1} of ${cards.length}`}
+        >
           <header className="card-heading">
             <div>
               <p className="card-eyebrow">
@@ -108,13 +118,18 @@ export default function CardCarousel({
                 {hostnameOf(card.sourceUrl)}
               </button>
             ) : (
-              <span className="card-source-chip card-source-chip-empty">unverified</span>
+              <span className="card-source-chip card-source-chip-empty">
+                unverified
+              </span>
             )}
-            <DrilldownPanel
-              key={clampedIndex}
-              query={card.title}
-              signedIn={signedIn}
-            />
+            {drilldownQuery && (
+              <DrilldownPanel
+                key={clampedIndex}
+                query={drilldownQuery}
+                signedIn={signedIn}
+                onFallback={onWorkExample}
+              />
+            )}
           </div>
         </article>
       </div>
@@ -128,7 +143,9 @@ export default function CardCarousel({
               aria-selected={dotIndex === clampedIndex}
               aria-label={`Go to card ${dotIndex + 1}`}
               className={
-                dotIndex === clampedIndex ? "carousel-dot carousel-dot-active" : "carousel-dot"
+                dotIndex === clampedIndex
+                  ? "carousel-dot carousel-dot-active"
+                  : "carousel-dot"
               }
               onClick={() => goTo(dotIndex)}
             />

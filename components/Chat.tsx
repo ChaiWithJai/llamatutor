@@ -43,6 +43,15 @@ export default function Chat({
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
   const wasLoadingRef = useRef(false);
   const [didScrollToBottom, setDidScrollToBottom] = useState(true);
+  const [activeDock, setActiveDock] = useState<"followup" | "practice" | null>(
+    null,
+  );
+
+  const openExample = () => {
+    setPromptValue("Walk me through one concrete example step by step.");
+    setActiveDock("followup");
+    onJourneyEvent?.("selected", "example");
+  };
 
   useEffect(() => {
     if (loading && didScrollToBottom) {
@@ -103,8 +112,7 @@ export default function Chat({
               // live markdown so the learner still sees real-time feedback.
               const isStreamingThisMessage =
                 loading && index === assistantMessages.length - 1;
-              const isLatestAssistant =
-                index === assistantMessages.length - 1;
+              const isLatestAssistant = index === assistantMessages.length - 1;
 
               return (
                 <div
@@ -125,6 +133,7 @@ export default function Chat({
                       sources={sources}
                       signedIn={signedIn}
                       onInspectSource={onInspectSource}
+                      onWorkExample={openExample}
                     />
                   )}
                 </div>
@@ -148,20 +157,75 @@ export default function Chat({
         )}
       </div>
 
-      {coachSlot}
-
-      <div className="chat-composer">
-        <FinalInputArea
-          disabled={disabled}
-          promptValue={promptValue}
-          setPromptValue={setPromptValue}
-          handleChat={handleChat}
-          messages={messages}
-          setMessages={setMessages}
-          signedIn={signedIn}
-          nextRep={nextRep}
-          onJourneyEvent={onJourneyEvent}
-        />
+      <div className="learning-dock" data-expanded={activeDock !== null}>
+        <div
+          className="learning-dock-actions"
+          role="group"
+          aria-label="Continue this learning session"
+        >
+          <button
+            type="button"
+            aria-expanded={activeDock === "followup"}
+            aria-controls="followup-tools"
+            className={
+              activeDock === "followup"
+                ? "dock-action dock-action-active"
+                : "dock-action"
+            }
+            onClick={() =>
+              setActiveDock((current) =>
+                current === "followup" ? null : "followup",
+              )
+            }
+          >
+            <span aria-hidden="true">↳</span>
+            Ask or choose a next move
+          </button>
+          <button
+            type="button"
+            aria-expanded={activeDock === "practice"}
+            aria-controls="practice-tools"
+            className={
+              activeDock === "practice"
+                ? "dock-action dock-action-active"
+                : "dock-action"
+            }
+            onClick={() =>
+              setActiveDock((current) =>
+                current === "practice" ? null : "practice",
+              )
+            }
+          >
+            <span aria-hidden="true">◎</span>
+            Practice this
+          </button>
+        </div>
+        {activeDock === "practice" && (
+          <div className="learning-dock-panel" id="practice-tools">
+            {coachSlot}
+          </div>
+        )}
+        {activeDock === "followup" && (
+          <div
+            className="chat-composer learning-dock-panel"
+            id="followup-tools"
+          >
+            <FinalInputArea
+              disabled={disabled}
+              promptValue={promptValue}
+              setPromptValue={setPromptValue}
+              handleChat={(nextMessages) => {
+                setActiveDock(null);
+                handleChat(nextMessages);
+              }}
+              messages={messages}
+              setMessages={setMessages}
+              signedIn={signedIn}
+              nextRep={nextRep}
+              onJourneyEvent={onJourneyEvent}
+            />
+          </div>
+        )}
       </div>
     </section>
   );

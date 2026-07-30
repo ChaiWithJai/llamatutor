@@ -530,13 +530,14 @@ a {
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  padding: var(--dd-space-4);
+  padding: var(--dd-space-3) var(--dd-space-4) var(--dd-space-4);
 }
 
 .session-meta {
   display: flex;
   width: min(100%, 88rem);
-  margin: 0 auto var(--dd-space-3);
+  min-height: 3.25rem;
+  margin: 0 auto var(--dd-space-2);
   align-items: center;
   justify-content: space-between;
   gap: var(--dd-space-4);
@@ -554,7 +555,7 @@ a {
   overflow: hidden;
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  font-size: clamp(1.25rem, 2.5vw, 1.85rem);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -592,14 +593,15 @@ a {
 }
 
 .message-list {
-  min-height: 18rem;
+  min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: clamp(1rem, 3vw, 2rem);
+  padding: clamp(0.75rem, 1.8vw, 1.5rem);
 }
 
 .message-list > .prose {
   display: flex;
+  height: 100%;
   min-height: 100%;
   flex-direction: column;
 }
@@ -607,24 +609,16 @@ a {
 .assistant-message {
   position: relative;
   display: flex;
+  height: 100%;
   min-height: 100%;
+  flex: 1;
   flex-direction: column;
-  margin-bottom: var(--dd-space-6);
-  padding-left: 3rem;
+  margin-bottom: 0;
+  padding-left: 0;
 }
 
 .assistant-mark {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--color-accent-learning);
-  font-family: var(--font-display);
-  font-weight: 750;
+  display: none;
 }
 
 .user-message {
@@ -639,9 +633,57 @@ a {
   font-weight: 600;
 }
 
-.chat-composer {
+.learning-dock {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
   border-top: 1.5px solid var(--color-border);
-  padding: var(--dd-space-2);
+  background: var(--color-surface);
+}
+
+.learning-dock-actions {
+  display: grid;
+  min-height: 3.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dock-action {
+  display: inline-flex;
+  min-width: 0;
+  min-height: var(--touch-min);
+  align-items: center;
+  justify-content: center;
+  gap: var(--dd-space-2);
+  border: 0;
+  background: var(--color-surface);
+  padding: 0.65rem var(--dd-space-3);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.dock-action + .dock-action {
+  border-left: 1px solid var(--dd-color-gray-300);
+}
+
+.dock-action:hover,
+.dock-action-active {
+  background: var(--dd-color-cream-200);
+}
+
+.dock-action span {
+  font-size: 1rem;
+}
+
+.learning-dock-panel {
+  max-height: min(20rem, 42dvh);
+  overflow-y: auto;
+  border-top: 1px solid var(--dd-color-gray-300);
+}
+
+.chat-composer {
+  padding: var(--dd-space-3);
 }
 
 .journey-rail-wrap {
@@ -665,14 +707,11 @@ a {
 }
 
 .journey-rail {
-  display: flex;
-  overflow-x: auto;
+  display: grid;
   margin-top: var(--dd-space-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--dd-space-2);
-  padding: 0 2.25rem var(--dd-space-1) 0;
-  scroll-padding-inline: var(--dd-space-2);
-  scroll-snap-type: x proximity;
-  scrollbar-width: thin;
+  padding: 0;
 }
 
 .chat-composer .prompt-row textarea {
@@ -680,29 +719,13 @@ a {
   padding-block: 0.85rem;
 }
 
-.journey-rail-wrap {
-  position: relative;
-}
-
-.journey-rail-wrap::after {
-  position: absolute;
-  right: 0;
-  bottom: var(--dd-space-2);
-  width: 2.5rem;
-  height: var(--touch-min);
-  background: linear-gradient(90deg, transparent, var(--color-surface));
-  content: "";
-  pointer-events: none;
-}
-
 .journey-move {
   display: inline-flex;
   min-height: var(--touch-min);
-  flex: 0 0 auto;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--dd-space-3);
-  scroll-snap-align: start;
   border: 1px solid var(--dd-color-gray-300);
   border-radius: var(--dd-radius-pill);
   background: var(--color-surface);
@@ -712,6 +735,8 @@ a {
   font: inherit;
   font-size: 0.75rem;
   font-weight: 750;
+  line-height: 1.15;
+  text-align: left;
 }
 
 .journey-move:hover,
@@ -728,6 +753,7 @@ a {
   display: flex;
   min-width: 0;
   min-height: 100%;
+  height: 100%;
   flex: 1;
   flex-direction: column;
   position: relative;
@@ -743,7 +769,7 @@ a {
 .carousel-card {
   display: flex;
   min-width: 0;
-  min-height: clamp(18rem, 44vh, 34rem);
+  min-height: clamp(22rem, 58vh, 46rem);
   flex: 1;
   flex-direction: column;
   gap: var(--dd-space-4);
@@ -817,8 +843,9 @@ a {
   flex: 1;
   overflow-y: auto;
   padding-right: var(--dd-space-2);
-  font-size: clamp(1rem, 1.3vw, 1.125rem);
-  line-height: 1.65;
+  max-width: 72rem;
+  font-size: clamp(1rem, 1.2vw, 1.15rem);
+  line-height: 1.68;
 }
 
 .card-body :where(p, ul, ol, blockquote, pre, table) {
@@ -955,6 +982,17 @@ a {
   margin-top: var(--dd-space-3);
 }
 
+@media (min-width: 801px) {
+  .carousel-dots {
+    position: absolute;
+    bottom: 1.35rem;
+    left: 50%;
+    z-index: 2;
+    margin: 0;
+    transform: translateX(-50%);
+  }
+}
+
 .carousel-dot {
   width: 0.5rem;
   height: 0.5rem;
@@ -1060,7 +1098,7 @@ a {
 .coach-panel {
   max-height: 20rem;
   overflow-y: auto;
-  border-top: 1.5px solid var(--color-border);
+  border-top: 0;
   background: var(--dd-color-cream-200);
   padding: var(--dd-space-4);
 }
@@ -1108,38 +1146,45 @@ a {
 }
 
 .coach-loop-mark {
-  position: relative;
-  display: grid;
-  width: 3.25rem;
-  height: 3.25rem;
+  display: block;
+  width: 3.5rem;
+  height: 3.5rem;
   flex: 0 0 auto;
-  place-items: center;
-  grid-template-columns: repeat(2, 0.7rem);
-  gap: 0.32rem;
-  border: 1.5px solid var(--color-border);
-  border-radius: 50%;
-  background: var(--color-surface);
 }
 
-.coach-loop-mark::after {
-  position: absolute;
-  right: -0.35rem;
-  bottom: -0.15rem;
-  content: "↗";
-  font-size: 0.9rem;
-  font-weight: 800;
+.coach-loop-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.coach-loop-mark span {
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 50%;
+.coach-loop-path,
+.coach-loop-arrow {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
-.coach-loop-mark span:nth-child(1) { background: var(--color-accent-learning); }
-.coach-loop-mark span:nth-child(2) { background: var(--color-accent-level); }
-.coach-loop-mark span:nth-child(3) { background: var(--color-accent-proof); }
-.coach-loop-mark span:nth-child(4) { background: var(--color-accent-ritual); }
+.coach-loop-node {
+  stroke: var(--color-border);
+  stroke-width: 1.5;
+}
+
+.coach-loop-node-1 {
+  fill: var(--color-accent-learning);
+}
+.coach-loop-node-2 {
+  fill: var(--color-accent-level);
+}
+.coach-loop-node-3 {
+  fill: var(--color-accent-proof);
+}
+.coach-loop-node-4 {
+  fill: var(--color-accent-ritual);
+}
 
 .coach-panel-invite .secondary-button {
   width: max-content;
@@ -1962,6 +2007,17 @@ a {
     justify-content: space-between;
     grid-template-columns: var(--touch-min) 1fr var(--touch-min);
     text-align: center;
+  }
+
+  .journey-move {
+    gap: var(--dd-space-1);
+    padding-inline: 0.45rem;
+    font-size: 0.68rem;
+    text-align: center;
+  }
+
+  .journey-move span {
+    display: none;
   }
 
   .session-meta {
