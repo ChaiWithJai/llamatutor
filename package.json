@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "test": "pnpm test:unit && pnpm test:e2e",
     "test:unit": "vitest run",
+    "test:learning-blocks": "vitest run utils/learningBlocks.test.ts",
     "test:integration": "node scripts/test-database-integration.mjs",
     "test:e2e": "playwright test",
     "check": "pnpm lint && pnpm test:unit && pnpm build",
