@@ -555,6 +555,20 @@ a {
   padding: var(--dd-space-4);
 }
 
+/* Design system v1.1, "Scroll & fit rules": every internally-scrolling
+   region needs a visible cue. Sticky-positioned inside the scroll
+   container itself, so no wrapper markup is required. */
+.coach-panel-scroll-cue {
+  position: sticky;
+  bottom: calc(var(--dd-space-4) * -1);
+  left: 0;
+  right: 0;
+  height: var(--scroll-cue-band);
+  margin: 0 calc(var(--dd-space-4) * -1) calc(var(--dd-space-4) * -1);
+  background: linear-gradient(180deg, transparent, var(--dd-color-cream-200) 70%);
+  pointer-events: none;
+}
+
 .coach-panel-invite {
   display: flex;
   align-items: center;

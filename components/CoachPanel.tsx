@@ -73,6 +73,7 @@ export default function CoachPanel({
           </small>
         </div>
         {goal && <ProgressTrail goal={goal} recentReps={recentReps} />}
+        <div className="coach-panel-scroll-cue" aria-hidden="true" />
       </section>
     );
   }
@@ -115,6 +116,7 @@ export default function CoachPanel({
           {busy ? "Coaching…" : "Get feedback and save my next rep"}
         </button>
       </form>
+      <div className="coach-panel-scroll-cue" aria-hidden="true" />
     </section>
   );
 }

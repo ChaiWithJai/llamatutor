@@ -32,6 +32,13 @@
 
   --dd-shadow-card: 0 1rem 3rem rgb(21 21 21 / 10%);
   --dd-shadow-lift: 0 0.5rem 0 var(--dd-color-ink-900);
+  --dd-shadow-lift-sm: 0 0.375rem 0 var(--dd-color-ink-900);
+
+  /* Design system v1.1 — one gutter, one minimum touch target, one scroll-cue
+     size, used everywhere instead of ad hoc literals. */
+  --touch-min: 2.75rem;
+  --layout-gutter: clamp(0.75rem, 3vw, 2rem);
+  --scroll-cue-band: 4.5rem;
 
   --dd-duration-fast: 160ms;
   --dd-duration-base: 240ms;
