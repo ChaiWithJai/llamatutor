@@ -5,6 +5,8 @@ import {
   createFirstRep,
   createNextRep,
   formatCoachFeedbackPrompt,
+  formatPracticeDate,
+  selectRecentCompletedReps,
 } from "./coaching";
 
 describe("coaching data flow", () => {
@@ -61,5 +63,35 @@ describe("coaching data flow", () => {
     );
     expect(messages[0]?.content).toContain("Do not shame");
     expect(messages[1]?.content).toContain("Plants eat sunlight");
+  });
+
+  it("selects the four newest completed reps for the active goal", () => {
+    const reps = Array.from({ length: 6 }, (_, index) => ({
+      id: `rep-${index}`,
+      goalId: index === 5 ? "other-goal" : "active-goal",
+      prompt: `Practice ${index}`,
+      attempt: "Attempt",
+      feedback: "Feedback",
+      status: (index === 0 ? "pending" : "completed") as
+        | "pending"
+        | "completed",
+      createdAt: `2026-07-${20 + index}T12:00:00.000Z`,
+      completedAt:
+        index === 0 ? null : `2026-07-${20 + index}T12:00:00.000Z`,
+    }));
+
+    expect(selectRecentCompletedReps(reps, "active-goal")).toHaveLength(4);
+    expect(selectRecentCompletedReps(reps, "active-goal")[0]?.id).toBe("rep-4");
+  });
+
+  it("formats recent completion dates in plain language", () => {
+    const now = new Date("2026-07-30T18:00:00.000Z");
+    expect(formatPracticeDate("2026-07-30T01:00:00.000Z", now)).toBe("Today");
+    expect(formatPracticeDate("2026-07-29T23:00:00.000Z", now)).toBe(
+      "Yesterday",
+    );
+    expect(formatPracticeDate("2026-07-27T12:00:00.000Z", now)).toBe(
+      "3 days ago",
+    );
   });
 });

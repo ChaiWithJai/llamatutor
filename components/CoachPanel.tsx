@@ -2,6 +2,7 @@
 
 import type { CoachingGoal, PracticeRep } from "@/utils/coaching";
 import NextRepCard from "@/components/NextRepCard";
+import ProgressTrail from "@/components/ProgressTrail";
 import StreakBadge from "@/components/StreakBadge";
 import { FormEvent, useState } from "react";
 
@@ -10,6 +11,7 @@ export default function CoachPanel({
   goal,
   rep,
   streakCount,
+  recentReps,
   busy,
   completion,
   onSignIn,
@@ -19,6 +21,7 @@ export default function CoachPanel({
   goal: CoachingGoal | null;
   rep: PracticeRep | null;
   streakCount: number;
+  recentReps: PracticeRep[];
   busy: boolean;
   completion: { feedback: string; nextRep: string } | null;
   onSignIn: () => void;
@@ -57,16 +60,19 @@ export default function CoachPanel({
   if (completion) {
     return (
       <section className="coach-panel coach-panel-complete" aria-live="polite">
-        <div className="coach-panel-heading">
-          <div>
-            <p className="session-label">Rep complete</p>
+        <div className="coach-completion-main">
+          <div className="coach-panel-heading">
+            <div>
+              <p className="session-label">Rep complete</p>
+            </div>
+            <StreakBadge count={streakCount} />
           </div>
-          <StreakBadge count={streakCount} />
+          <NextRepCard text={completion.nextRep} />
+          <small>
+            A streak records that you practiced. It does not claim mastery.
+          </small>
         </div>
-        <NextRepCard text={completion.nextRep} />
-        <small>
-          A streak records that you practiced. It does not claim mastery.
-        </small>
+        {goal && <ProgressTrail goal={goal} recentReps={recentReps} />}
       </section>
     );
   }
