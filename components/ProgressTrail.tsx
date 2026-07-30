@@ -37,6 +37,7 @@ export default function ProgressTrail({
           const completedAt = practiceRep.completedAt ?? practiceRep.createdAt;
           return (
             <li key={practiceRep.id}>
+              <span className="progress-trail-dot" aria-hidden="true" />
               <time dateTime={completedAt}>
                 {formatPracticeDate(completedAt)}
               </time>

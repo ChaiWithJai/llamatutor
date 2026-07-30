@@ -685,6 +685,7 @@ a {
 }
 
 .progress-trail ol {
+  position: relative;
   display: grid;
   margin: var(--dd-space-3) 0 0;
   padding: 0;
@@ -692,12 +693,36 @@ a {
 }
 
 .progress-trail li {
+  position: relative;
   display: grid;
   align-items: start;
-  grid-template-columns: 6rem minmax(0, 1fr) auto;
+  grid-template-columns: 0.75rem 6rem minmax(0, 1fr) auto;
   gap: var(--dd-space-3);
   border-bottom: 1px solid var(--dd-color-gray-300);
   padding: var(--dd-space-3) 0;
+}
+
+.progress-trail-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.3rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--dd-color-green-500);
+}
+
+.progress-trail li:first-child .progress-trail-dot {
+  background: var(--color-accent-ritual);
+}
+
+.progress-trail li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--dd-space-3) + 1.05rem);
+  bottom: 0;
+  left: calc(0.75rem / 2 - 0.75px);
+  width: 1.5px;
+  background: rgb(21 21 21 / 18%);
 }
 
 .progress-trail li time {
