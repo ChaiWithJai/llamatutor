@@ -5,13 +5,19 @@ test("voice demo leads with a useful booking call", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: "Hear it handle the call. Then interrupt it.",
+      name: "A calm front desk, one turn at a time.",
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Start demo call" }).click();
 
-  await expect(page.getByText("Appointment options ready")).toBeVisible();
-  await expect(page.getByText("Tue 2:30")).toBeVisible();
+  await expect(page.getByText("What would you say next?")).toBeVisible();
+  await page.getByRole("button", { name: /Tuesday at 2:30/ }).click();
+  await expect(
+    page.getByText("Tuesday at 2:30 works better for me."),
+  ).toBeVisible();
+  await expect(page.getByText("Next step proposed")).toBeVisible();
+  await expect(page.getByText("Proposed only")).toBeVisible();
+  await expect(page.getByText("Nothing was booked or saved.")).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Build this for my team" }),
   ).toBeVisible();
@@ -21,6 +27,7 @@ test("urgent call stops the commercial flow and reveals reviewed evidence", asyn
   page,
 }) => {
   await page.goto("/mental-health");
+  await page.getByText("See how safety changes the conversation").click();
   await page
     .getByRole("button", { name: /Immediate danger Stop the normal flow/ })
     .click();
@@ -71,8 +78,12 @@ test("barge-in stops browser audio and exposes a clear recovery state", async ({
   await page.getByRole("button", { name: "Start demo call" }).click();
   await page.getByRole("button", { name: "Interrupt voice" }).click();
 
-  await expect(page.getByText("Audio stopped—queue cleared")).toBeVisible();
-  await expect(page.getByText("clear Twilio’s queued audio")).toBeVisible();
+  await expect(page.getByText("Audio paused—conversation kept")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Resume conversation" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Resume conversation" }).click();
+  await expect(page.getByText("What would you say next?")).toBeVisible();
 });
 
 test("live guardrail stays disclosed and the mobile viewport does not overflow", async ({
@@ -92,9 +103,25 @@ test("live guardrail stays disclosed and the mobile viewport does not overflow",
     .check();
   await expect(submit).toBeEnabled();
 
-  const widths = await page.evaluate(() => ({
-    client: document.documentElement.clientWidth,
-    scroll: document.documentElement.scrollWidth,
-  }));
-  expect(widths.scroll).toBe(widths.client);
+  for (const width of [390, 830, 1353]) {
+    await page.setViewportSize({ width, height: 921 });
+    const widths = await page.evaluate(() => ({
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    }));
+    expect(widths.scroll).toBe(widths.client);
+  }
+});
+
+test("reduced motion keeps the conversation legible without animation", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/mental-health");
+
+  const animationName = await page
+    .locator("article[data-speaker='receptionist']")
+    .first()
+    .evaluate((element) => getComputedStyle(element).animationName);
+  expect(animationName).toBe("none");
 });

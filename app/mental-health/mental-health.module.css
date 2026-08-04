@@ -186,6 +186,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.scenarioPicker[data-count="1"] {
+  grid-template-columns: minmax(0, 28rem);
+}
+
 .scenarioPicker button {
   position: relative;
   display: grid;
@@ -463,6 +467,51 @@
   animation-delay: 300ms;
 }
 
+.turnChoices {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  border: 0;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  gap: 0.5rem;
+}
+
+.turnChoices legend {
+  width: 100%;
+  margin-bottom: 0.15rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.turnChoices button {
+  display: inline-flex;
+  min-height: var(--touch-min);
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+  padding: 0.72rem 0.9rem;
+  gap: 0.75rem;
+}
+
+.turnChoices button:hover {
+  background: color-mix(
+    in srgb,
+    var(--color-accent-learning) 18%,
+    var(--color-surface)
+  );
+}
+
 .emptyCall {
   display: grid;
   min-height: 9rem;
@@ -632,9 +681,17 @@
 }
 
 .appointmentSlots {
-  display: flex;
+  display: grid;
   flex-wrap: wrap;
   gap: 0.4rem;
+}
+
+.appointmentSlots small {
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .appointmentSlots span {
@@ -657,6 +714,49 @@
   font-weight: 850;
   text-align: center;
   text-decoration: none;
+}
+
+.safetyExamples {
+  margin-top: 1.5rem;
+  border: 1px solid rgb(21 21 21 / 24%);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 46%);
+  padding: 0 1rem;
+}
+
+.safetyExamples summary {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 850;
+  list-style: none;
+  gap: 1rem;
+}
+
+.safetyExamples summary::after {
+  content: "+";
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.safetyExamples[open] summary::after {
+  content: "−";
+}
+
+.safetyExamples > p {
+  max-width: 48rem;
+  margin: 0 0 0.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.safetyExamples .scenarioPicker {
+  margin-top: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .progressive {
@@ -1000,6 +1100,14 @@
     scroll-snap-align: start;
   }
 
+  .safetyExamples .scenarioPicker {
+    display: flex;
+  }
+
+  .safetyExamples .scenarioPicker button {
+    min-width: min(72vw, 17rem);
+  }
+
   .callHeader {
     align-items: flex-start;
     flex-direction: column;
@@ -1025,6 +1133,10 @@
 
   .transcript article {
     width: 92%;
+  }
+
+  .turnChoices button {
+    width: 100%;
   }
 
   .callOutcome {

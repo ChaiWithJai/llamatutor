@@ -26,10 +26,13 @@ the information hierarchy:
 2. guided synthetic calls work without provider or phone credentials;
 3. browser speech makes speaking and cancellation tangible without collecting
    microphone or telephone data;
-4. the safety trace, infrastructure, evaluation, and limitations appear in FAQ
+4. the routine path is multi-turn and asks the visitor to make one meaningful
+   scheduling choice before showing an honest proposed next step;
+5. ambiguous and urgent examples move behind a secondary disclosure;
+6. the safety trace, infrastructure, evaluation, and limitations appear in FAQ
    and **How we built this** disclosures below the call;
-5. urgent outcomes suppress commercial calls to action; and
-6. an acknowledged live Together text lab remains available only as an
+7. urgent outcomes suppress commercial calls to action; and
+8. an acknowledged live Together text lab remains available only as an
    inspection tool.
 
 The safety contract remains unchanged in substance: validate structured input,
@@ -37,10 +40,10 @@ let application code route, generate only when permitted, buffer the candidate,
 approve the complete output, and then reveal or speak it. Abstention and failure
 select reviewed conservative content.
 
-Netlify remains the web and control plane. Real Twilio media requires the
-bounded DigitalOcean worker in Issue #58 or another long-running runtime. The
-browser demo is explicitly labelled as a simulation and cannot be used as
-evidence that telephony, codecs, interruption, or transfer are production-ready.
+Netlify serves the complete demo. No phone number, Twilio/LiveKit connection,
+DigitalOcean worker, microphone permission, or raw audio transport is part of
+this slice. The browser demo is explicitly labelled as synthetic and cannot be
+used as evidence that telephony, codecs, or transfer are production-ready.
 
 ## Alternatives considered
 
@@ -58,10 +61,11 @@ without diluting the product surface.
 Rejected for this public slice. It introduces permission, privacy, acoustic,
 and failure states before they add proportional demonstration value.
 
-### Move the web product to the DigitalOcean Droplet
+### Add real telephony for the masterclass
 
-Rejected. Netlify already provides the correct web/control-plane behavior. The
-Droplet should be reused only for continuous media after reversible host gates.
+Rejected for this slice. A phone number and continuous media add credentials,
+privacy, latency, codec, and operational failure modes without improving the
+core demonstration of multi-turn policy and interaction design.
 
 ## Consequences
 
@@ -72,5 +76,5 @@ provide an acceptance seam for Issue #57, while Issue #60 supplies evidence
 about the current text guards before stronger claims are made.
 
 Broader release remains blocked on external corpus permission, independent
-route review, voice perturbation tests, host preparation, real telephony
-credentials, and the privacy/incident decisions listed in the PRD.
+route review, real acoustic testing, and the privacy/incident decisions listed
+in the PRD. Those gates do not block the bounded web-only masterclass demo.

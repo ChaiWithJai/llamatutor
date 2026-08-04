@@ -5,6 +5,7 @@ import {
   demoScenarios,
   deriveMentalHealthRoute,
   MENTAL_HEALTH_POLICY_VERSION,
+  voiceBookingChoices,
   voiceScenarios,
 } from "./mentalHealthPolicy";
 
@@ -33,6 +34,17 @@ describe("mental health demo policy", () => {
       } else {
         expect(result.reply).toContain("safety");
       }
+    },
+  );
+
+  it.each(voiceBookingChoices)(
+    "keeps booking choice $id honest and ephemeral",
+    (choice) => {
+      expect(choice.callerReply.length).toBeGreaterThan(10);
+      expect(choice.receptionistReply).toMatch(
+        /(practice to confirm|nothing was booked)/,
+      );
+      expect(choice.receptionistReply).not.toMatch(/appointment is confirmed/i);
     },
   );
 
