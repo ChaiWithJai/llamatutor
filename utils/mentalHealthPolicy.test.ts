@@ -5,6 +5,7 @@ import {
   demoScenarios,
   deriveMentalHealthRoute,
   MENTAL_HEALTH_POLICY_VERSION,
+  voiceScenarios,
 } from "./mentalHealthPolicy";
 
 describe("mental health demo policy", () => {
@@ -21,6 +22,19 @@ describe("mental health demo policy", () => {
     ]);
     expect(result.reply.length).toBeGreaterThan(20);
   });
+
+  it.each(voiceScenarios)(
+    "routes voice scenario $id to $expectedRoute with receptionist copy",
+    (scenario) => {
+      const result = buildGuidedDemoResult(scenario);
+      expect(result.route).toBe(scenario.expectedRoute);
+      if (scenario.reviewedReply) {
+        expect(result.reply).toBe(scenario.reviewedReply);
+      } else {
+        expect(result.reply).toContain("safety");
+      }
+    },
+  );
 
   it("promotes low-confidence and abstained results to elevated", () => {
     expect(

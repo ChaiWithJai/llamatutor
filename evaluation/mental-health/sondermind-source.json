@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": "https://github.com/SonderMindOrg/sonder-guardrail-evals",
+  "commit": "4a3c503e0f55de86c2270c1560cb54a7e2a3bf49",
+  "licenseStatus": "No license file was present at the pinned commit; do not vendor, redistribute, or fetch in CI without written permission.",
+  "contentWarning": "The external corpus contains self-harm, abuse, violent crime, hate speech, and other potentially distressing material.",
+  "files": {
+    "input": {
+      "path": "src/datasets/input_guardrails_scenarios.yaml",
+      "sha256": "53ae521b318241ced3f723bb73360adf4d6ddaf732117028e683732aa183ce9a",
+      "expectedCount": 255
+    },
+    "output": {
+      "path": "src/datasets/output_guardrails_scenarios.yaml",
+      "sha256": "2c578831e3d94ebcd861dd6d5c68b0609ef95d1c227a8292d64bcaa8f907875c",
+      "expectedCount": 100
+    }
+  }
+}

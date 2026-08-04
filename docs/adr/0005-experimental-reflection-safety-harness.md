@@ -1,91 +1,76 @@
-# ADR 0005: Isolate the experimental reflection safety harness
+# ADR 0005: Lead with the voice receptionist; disclose the safety harness progressively
 
-- Status: proposed
+- Status: accepted for the experiment
 - Date: 2026-08-04
-- Related: ADR 0002, ADR 0004, `docs/mental-health-mode-prd.md`
+- Related: ADR 0001, ADR 0002, ADR 0004, `docs/mental-health-mode-prd.md`
 
 ## Context
 
-Dharmic Data Tutor is a sourced learning product. Its root page combines topic
-selection, source retrieval, streamed Together output, practice, authentication,
-and saved learner state. Mental-health language introduces a different risk and
-data boundary. Reusing the lesson stream would expose model tokens before an
-output check and could send sensitive content into persistence or observability
-systems designed for learning.
+The first Reflection mode implementation made the four-stage safety harness the
+hero and offered voice as a transfer card after completion. That accurately
+showed the engineering, but buried the practical value. A masterclass audience
+first needs to experience the receptionist handling a call, changing course,
+and stopping when interrupted. Architecture is supporting evidence, not the
+lead.
 
-The desired masterclass demonstration is valuable because it makes the safety
-architecture visible and transferable to voice systems. That teaching goal does
-not require presenting an unvalidated clinical product.
+The privacy and safety boundary still differs from the sourced Tutor. Reusing
+the lesson stream would reveal unchecked tokens and could send sensitive text
+into learning persistence or observability.
 
 ## Decision
 
-Create an isolated `/mental-health` experiment, labelled in-product as
-**Reflection mode · experiment**.
+Keep the isolated `/mental-health` route and typed safety contract, but invert
+the information hierarchy:
 
-The first public slice defaults to reviewed synthetic scenarios and
-deterministic responses. A separately acknowledged live lab calls Together to
-demonstrate schema-constrained input assessment, bounded generation, and output
-assessment. A typed policy module owns the three routes and the browser renders
-an inspectable four-stage trace. The route never calls Exa, Netlify Identity,
-Netlify Database, Helicone, or any voice provider.
+1. the browser voice receptionist and transcript own the primary surface;
+2. guided synthetic calls work without provider or phone credentials;
+3. browser speech makes speaking and cancellation tangible without collecting
+   microphone or telephone data;
+4. the safety trace, infrastructure, evaluation, and limitations appear in FAQ
+   and **How we built this** disclosures below the call;
+5. urgent outcomes suppress commercial calls to action; and
+6. an acknowledged live Together text lab remains available only as an
+   inspection tool.
 
-Future model-backed work must preserve the same contract:
+The safety contract remains unchanged in substance: validate structured input,
+let application code route, generate only when permitted, buffer the candidate,
+approve the complete output, and then reveal or speak it. Abstention and failure
+select reviewed conservative content.
 
-1. validate a schema-constrained input assessment;
-2. let server application code choose the route;
-3. generate only when the route permits it;
-4. buffer the complete candidate response;
-5. run the output check; and
-6. reveal approved text or a reviewed replacement.
-
-Provider failures and low-confidence assessments abstain into a conservative
-reviewed state. Urgent states keep the interface usable and show reviewed
-resources; they never automatically call, text, dispatch, terminate, or imply
-that a human is monitoring the session.
-
-Netlify hosts the web/control plane. A later voice adapter runs on LiveKit
-Cloud Agents or a long-lived DigitalOcean worker because bidirectional audio is
-not a short-lived Netlify Function workload.
+Netlify remains the web and control plane. Real Twilio media requires the
+bounded DigitalOcean worker in Issue #58 or another long-running runtime. The
+browser demo is explicitly labelled as a simulation and cannot be used as
+evidence that telephony, codecs, interruption, or transfer are production-ready.
 
 ## Alternatives considered
 
-### Add another mode to `app/page.tsx`
+### Keep the architecture-first introduction
 
-Rejected. It would couple a different safety and privacy contract to the
-lesson, source, account, and coaching state machines.
+Rejected. It teaches implementation before establishing why anyone should care.
 
-### Stream a coach response and judge it asynchronously
+### Hide safety behavior entirely
 
-Rejected. A judge cannot retract harmful text already rendered or spoken.
+Rejected. Progressive disclosure preserves inspectability and governance
+without diluting the product surface.
 
-### Let the model choose tools or emergency actions
+### Add microphone capture immediately
 
-Rejected. Routing and side effects are policy decisions owned by reviewed
-application code.
+Rejected for this public slice. It introduces permission, privacy, acoustic,
+and failure states before they add proportional demonstration value.
 
-### Present unrestricted free text as a support product
+### Move the web product to the DigitalOcean Droplet
 
-Rejected. Clinical labels, jurisdiction behavior, privacy, incident ownership,
-and model qualification are unresolved. The bounded live lab is explicitly an
-engineering demonstration, remains non-persistent, and always retains the
-synthetic path and reviewed fallback.
+Rejected. Netlify already provides the correct web/control-plane behavior. The
+Droplet should be reused only for continuous media after reversible host gates.
 
 ## Consequences
 
-separate route adds a small amount of duplicated shell UI, but prevents the
-existing learning database and streaming path from becoming accidental
-dependencies.
-The experiment is honest and repeatable: guided scenarios work without provider
-credentials, while the live lab demonstrates the real Together boundary. It
-demonstrates the architecture rather than claiming clinical efficacy. The
-separate route adds a small amount of duplicated shell UI, but prevents the
-existing learning database and streaming path from becoming accidental
-dependencies.
-separate route adds a small amount of duplicated shell UI, but prevents the
-existing learning database and streaming path from becoming accidental
-dependencies.
+The demo now communicates the outcome in seconds and still supports a deep
+technical walkthrough. The guided call is a simulation, so copy and analytics
+must remain honest about that fact. The call state machine and interruption UI
+provide an acceptance seam for Issue #57, while Issue #60 supplies evidence
+about the current text guards before stronger claims are made.
 
-The live lab demonstrates mechanics but cannot validate clinical classification
-quality. It cannot graduate into a support product without the corpus and
-reviewers defined in the PRD. Voice delivery is also a separate adapter, not a
-hidden extension of the Netlify web runtime.
+Broader release remains blocked on external corpus permission, independent
+route review, voice perturbation tests, host preparation, real telephony
+credentials, and the privacy/incident decisions listed in the PRD.

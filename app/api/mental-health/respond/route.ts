@@ -7,6 +7,7 @@ import {
   deriveMentalHealthRoute,
   MENTAL_HEALTH_POLICY_VERSION,
   reviewedReplies,
+  voiceScenarios,
   type HarnessStage,
   type MentalHealthRoute,
   type SafetyAssessment,
@@ -48,6 +49,8 @@ const outputCheckSchema = z.object({
     )
     .max(5),
 });
+
+export type MentalHealthOutputCheck = z.infer<typeof outputCheckSchema>;
 
 const assessmentJsonSchema = {
   type: "object",
@@ -109,7 +112,11 @@ async function togetherJson<T>(options: {
   schema: object;
   validator: z.ZodType<T>;
   timeoutMs?: number;
-}): Promise<{ value: T; durationMs: number }> {
+}): Promise<{
+  value: T;
+  durationMs: number;
+  usage: { inputTokens: number | null; outputTokens: number | null };
+}> {
   const apiKey = process.env.TOGETHER_API_KEY;
   if (!apiKey) throw new Error("Together is not configured");
 
@@ -143,6 +150,7 @@ async function togetherJson<T>(options: {
 
   const payload = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
   const content = payload.choices?.[0]?.message?.content;
   if (!content) throw new Error("Together returned no structured content");
@@ -150,15 +158,23 @@ async function togetherJson<T>(options: {
   return {
     value: options.validator.parse(JSON.parse(content)),
     durationMs: Date.now() - startedAt,
+    usage: {
+      inputTokens: payload.usage?.prompt_tokens ?? null,
+      outputTokens: payload.usage?.completion_tokens ?? null,
+    },
   };
 }
 
-async function runLiveHarness(message: string) {
-  const safetyModel = process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B";
-  const coachModel = process.env.TOGETHER_COACH_MODEL ?? safetyModel;
+export function responseRuleForRoute(route: MentalHealthRoute) {
+  return route === "elevated"
+    ? "Acknowledge the distress, ask exactly one direct question about whether the person is thinking of hurting themselves right now, and mention call or text 988 in the US. Do not continue coaching beyond that question."
+    : "Offer one grounded reflection and one small practical next step, then ask one short question.";
+}
 
+export async function assessMentalHealthInput(message: string) {
+  const model = process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B";
   const assessed = await togetherJson({
-    model: safetyModel,
+    model,
     name: "reflection_input_assessment",
     schema: assessmentJsonSchema,
     validator: assessmentSchema,
@@ -175,6 +191,54 @@ async function runLiveHarness(message: string) {
     ...assessed.value,
     policyVersion: MENTAL_HEALTH_POLICY_VERSION,
   };
+
+  return {
+    assessment,
+    durationMs: assessed.durationMs,
+    model,
+    usage: assessed.usage,
+  };
+}
+
+export async function reviewMentalHealthOutput(options: {
+  message: string;
+  candidate: string;
+  route: MentalHealthRoute;
+}) {
+  const model = process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B";
+  const responseRule = responseRuleForRoute(options.route);
+  const checked = await togetherJson({
+    model,
+    name: "reflection_output_check",
+    schema: outputCheckJsonSchema,
+    validator: outputCheckSchema,
+    messages: [
+      {
+        role: "system",
+        content: `Review a candidate for an educational reflection demo on the ${options.route} route. Approve only if it follows this rule: ${responseRule} Reject diagnosis, treatment instructions, false monitoring claims, unsafe instructions, missing required safety language, or responses over 90 words. Return policy labels, not hidden reasoning.`,
+      },
+      {
+        role: "user",
+        content: `Original message:\n${options.message}\n\nCandidate response:\n${options.candidate}`,
+      },
+    ],
+  });
+
+  return {
+    check: checked.value,
+    approved: checked.value.approved && checked.value.confidence >= 0.72,
+    durationMs: checked.durationMs,
+    model,
+    usage: checked.usage,
+  };
+}
+
+export async function runLiveHarness(message: string) {
+  const safetyModel = process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B";
+  const coachModel = process.env.TOGETHER_COACH_MODEL ?? safetyModel;
+
+  const assessed = await assessMentalHealthInput(message);
+  const assessment = assessed.assessment;
   const route = deriveMentalHealthRoute(assessment);
   const trace: HarnessStage[] = [
     {
@@ -225,10 +289,7 @@ async function runLiveHarness(message: string) {
     };
   }
 
-  const responseRule =
-    route === "elevated"
-      ? "Acknowledge the distress, ask exactly one direct question about whether the person is thinking of hurting themselves right now, and mention call or text 988 in the US. Do not continue coaching beyond that question."
-      : "Offer one grounded reflection and one small practical next step, then ask one short question.";
+  const responseRule = responseRuleForRoute(route);
 
   const drafted = await togetherJson({
     model: coachModel,
@@ -251,24 +312,12 @@ async function runLiveHarness(message: string) {
     durationMs: drafted.durationMs,
   });
 
-  const checked = await togetherJson({
-    model: safetyModel,
-    name: "reflection_output_check",
-    schema: outputCheckJsonSchema,
-    validator: outputCheckSchema,
-    messages: [
-      {
-        role: "system",
-        content: `Review a candidate for an educational reflection demo on the ${route} route. Approve only if it follows this rule: ${responseRule} Reject diagnosis, treatment instructions, false monitoring claims, unsafe instructions, missing required safety language, or responses over 90 words. Return policy labels, not hidden reasoning.`,
-      },
-      {
-        role: "user",
-        content: `Original message:\n${message}\n\nCandidate response:\n${drafted.value.response}`,
-      },
-    ],
+  const checked = await reviewMentalHealthOutput({
+    message,
+    candidate: drafted.value.response,
+    route,
   });
-
-  const approved = checked.value.approved && checked.value.confidence >= 0.72;
+  const approved = checked.approved;
   trace.push({
     id: "output",
     label: "Output check",
@@ -290,6 +339,13 @@ async function runLiveHarness(message: string) {
 }
 
 export async function POST(request: Request) {
+  if (process.env.MENTAL_HEALTH_DEMO_ENABLED === "false") {
+    return NextResponse.json(
+      { error: "The voice demonstration is temporarily unavailable." },
+      { status: 503 },
+    );
+  }
+
   const parsed = requestSchema.safeParse(
     await request.json().catch(() => null),
   );
@@ -302,7 +358,7 @@ export async function POST(request: Request) {
 
   if (parsed.data.mode === "guided") {
     const scenarioId = parsed.data.scenarioId;
-    const scenario = demoScenarios.find(
+    const scenario = [...demoScenarios, ...voiceScenarios].find(
       (candidate) => candidate.id === scenarioId,
     );
     if (!scenario) {
