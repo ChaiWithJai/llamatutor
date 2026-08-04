@@ -29,6 +29,10 @@ import {
   type VoiceConversationTurn,
 } from "@/utils/mentalHealthPolicy";
 import type { ReviewedSpeechGrant } from "@/utils/reviewedSpeechGrant";
+import {
+  initialReceptionConversationState,
+  type ReceptionConversationState,
+} from "@/utils/receptionConversation";
 import type { TranscriptEvent } from "@/utils/voiceTurn";
 
 type CallPhase =
@@ -92,6 +96,7 @@ type TranscriptEntry = {
 type CallerReply = MentalHealthDemoResult & {
   speechGrant?: ReviewedSpeechGrant | null;
   conversationComplete?: boolean;
+  conversationState?: ReceptionConversationState;
 };
 
 type ActiveCase = {
@@ -211,6 +216,9 @@ export default function MentalHealthDemo() {
   const modeRef = useRef<CallMode>("simulated");
   const routeRef = useRef<MentalHealthDemoResult["route"] | null>(null);
   const entriesRef = useRef<TranscriptEntry[]>([]);
+  const conversationStateRef = useRef<ReceptionConversationState>(
+    initialReceptionConversationState(),
+  );
   const advanceTimer = useRef<number | null>(null);
   const pausedResume = useRef<(() => void) | null>(null);
   const preloadedAudio = useRef(new Map<number, Promise<string | null>>());
@@ -781,6 +789,7 @@ export default function MentalHealthDemo() {
           history,
           turnNumber: callerTurns,
           forceClose: callerTurns === LIVE_CALLER_TURN_LIMIT,
+          conversationState: conversationStateRef.current,
         })) as CallerReply;
       } catch {
         setLiveNotice(
@@ -793,6 +802,9 @@ export default function MentalHealthDemo() {
       if (isStale(currentRun)) return;
 
       setResult(reply);
+      if (reply.conversationState) {
+        conversationStateRef.current = reply.conversationState;
+      }
       routeRef.current = reply.route;
       recordHarness(reply);
 
@@ -838,6 +850,7 @@ export default function MentalHealthDemo() {
     routeRef.current = null;
     setPhase("connecting");
     entriesRef.current = [];
+    conversationStateRef.current = initialReceptionConversationState();
     setEntries([]);
     setElapsedSeconds(0);
     audioModeRef.current = "natural";
@@ -1002,6 +1015,7 @@ export default function MentalHealthDemo() {
     setPhase("idle");
     setSeat("empty");
     entriesRef.current = [];
+    conversationStateRef.current = initialReceptionConversationState();
     setEntries([]);
     setElapsedSeconds(0);
     audioModeRef.current = "natural";

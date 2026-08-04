@@ -69,6 +69,7 @@ async function installLiveCaller(
     permission?: "granted" | "denied";
     transcript?: string;
     respondFailure?: boolean;
+    incident?: boolean;
   } = {},
 ) {
   const permission = options.permission ?? "granted";
@@ -76,6 +77,8 @@ async function installLiveCaller(
     mode?: string;
     turnNumber?: number;
     history?: Array<{ speaker: string; text: string }>;
+    message?: string;
+    conversationState?: { turnCount?: number; nextAction?: string };
   }> = [];
 
   await page.route("**/api/mental-health/transcribe", async (route) => {
@@ -116,11 +119,58 @@ async function installLiveCaller(
       return;
     }
     const turnNumber = body.turnNumber ?? 1;
-    const replies = [
+    const routineReplies = [
       "Happy to help. For this demonstration I can offer Tuesday at two thirty or four. Which works better? Nothing is booked or saved.",
       "Tuesday at two thirty is the selected demonstration time. Is there anything else you need before we close? Nothing is booked or saved.",
       "That completes this demonstration call. Thank you for calling, and take care. Nothing is booked or saved.",
     ];
+    const incidentReplies = [
+      "I can’t schedule surgery in this demonstration. A practice staff member would need to help. Nothing is booked or saved.",
+      "Thanks for correcting me. I have not recorded either time. A practice staff member would need to continue. Nothing is booked or saved.",
+      "I hear that you do not want to end, and I will not pretend this is resolved. This bounded demonstration must end; practice staff would need to continue.",
+    ];
+    const replies = options.incident ? incidentReplies : routineReplies;
+    const conversationState = options.incident
+      ? {
+          version: 1,
+          intent: "procedure",
+          requestedService: "procedure",
+          dateConstraint: turnNumber >= 2 ? "two_weeks" : "unspecified",
+          timeConstraint: "unspecified",
+          offeredSlots: [],
+          rejectedSlots: [],
+          offerRejected: turnNumber >= 2,
+          acceptedSlot: null,
+          unresolvedGoal: true,
+          correctionPending: turnNumber === 2,
+          callerDisposition:
+            turnNumber >= 3 ? "objects_to_close" : "continuing",
+          nextAction: "handoff",
+          closeReason: turnNumber >= 3 ? "bounded_handoff" : null,
+          turnCount: turnNumber,
+        }
+      : {
+          version: 1,
+          intent: "schedule",
+          requestedService: "appointment",
+          dateConstraint: "next_tuesday",
+          timeConstraint: "unspecified",
+          offeredSlots: ["Tuesday at 2:00 PM", "Tuesday at 3:30 PM"],
+          rejectedSlots: [],
+          offerRejected: false,
+          acceptedSlot: turnNumber >= 2 ? "Tuesday at 2:00 PM" : null,
+          unresolvedGoal: turnNumber === 1,
+          correctionPending: false,
+          callerDisposition: turnNumber >= 3 ? "done" : "continuing",
+          nextAction:
+            turnNumber >= 3
+              ? "close"
+              : turnNumber === 2
+                ? "confirm_demo_choice"
+                : "offer",
+          closeReason: turnNumber >= 3 ? "caller_ended" : null,
+          turnCount: turnNumber,
+        };
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -135,6 +185,7 @@ async function installLiveCaller(
         route: "routine",
         reply: replies[Math.min(turnNumber - 1, replies.length - 1)],
         conversationComplete: turnNumber >= 3,
+        conversationState,
         provider: "together",
         trace: [
           {
@@ -441,9 +492,57 @@ test("typed live caller completes a context-preserving multi-turn call", async (
   expect(requests[0].history).toHaveLength(1);
   expect(requests[1].history).toHaveLength(3);
   expect(requests[2].history).toHaveLength(5);
+  expect(requests[1].conversationState).toMatchObject({
+    turnCount: 1,
+    nextAction: "offer",
+  });
+  expect(requests[2].conversationState).toMatchObject({
+    turnCount: 2,
+    nextAction: "confirm_demo_choice",
+  });
   expect(requests[2].history?.map((turn) => turn.text)).toContain(
     "Tuesday at two thirty works for me.",
   );
+});
+
+test("issue 69 repairs rejection and ends only as a truthful bounded handoff", async ({
+  page,
+}) => {
+  await installDemoAudio(page, { autoEnd: true });
+  const requests = await installLiveCaller(page, {
+    permission: "denied",
+    incident: true,
+  });
+  await page.goto("/mental-health");
+
+  await page.getByRole("button", { name: "Join as caller" }).click();
+  const field = page.getByRole("textbox", { name: "Type this turn" });
+  const turns = [
+    "I need to schedule my surgery.",
+    "Neither of those works. I need something two weeks from now.",
+    "No, we cannot close. I am not done.",
+  ];
+  for (const turn of turns) {
+    await expect(field).toBeVisible();
+    await field.fill(turn);
+    await page.getByRole("button", { name: "Send turn" }).click();
+    await expect(page.getByText(turn, { exact: true })).toBeVisible();
+  }
+
+  await expect(page.getByText("Call complete", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("have not recorded either time", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("will not pretend this is resolved", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("noted that choice", { exact: false }),
+  ).toHaveCount(0);
+  expect(requests[2].conversationState).toMatchObject({
+    turnCount: 2,
+    nextAction: "handoff",
+  });
 });
 
 test("a live call can continue as a simulation without losing turns", async ({

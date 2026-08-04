@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { POST, responseRuleForRoute, reviewedReplyForPersona } from "./route";
 import { edgeCaseManifest } from "../../../../utils/mentalHealthEdgeCases";
+import {
+  initialReceptionConversationState,
+  transitionReceptionConversation,
+} from "../../../../utils/receptionConversation";
 
 function request(body: unknown) {
   return new Request("http://localhost/api/mental-health/respond", {
@@ -201,15 +205,30 @@ describe("response rules", () => {
     expect(rule).not.toBe(responseRuleForRoute("routine"));
   });
 
-  it("keeps rejected routine turns inside a reviewed multi-turn close", () => {
-    expect(reviewedReplyForPersona("routine", "receptionist", 1)).toContain(
-      "Which time",
+  it("selects reviewed receptionist fallbacks from semantic state", () => {
+    const initial = initialReceptionConversationState();
+    const offered = transitionReceptionConversation(
+      initial,
+      "I need to schedule an appointment.",
     );
-    expect(reviewedReplyForPersona("routine", "receptionist", 2)).toContain(
-      "anything else",
+    const rejected = transitionReceptionConversation(
+      offered,
+      "Neither time works. I need something two weeks from now.",
     );
-    expect(reviewedReplyForPersona("routine", "receptionist", 3)).toContain(
-      "completes this demonstration",
+    const objected = transitionReceptionConversation(
+      rejected,
+      "No, we cannot close. I am not done.",
+      { forceClose: true },
     );
+
+    expect(
+      reviewedReplyForPersona("routine", "receptionist", offered),
+    ).toContain("Which time");
+    expect(
+      reviewedReplyForPersona("routine", "receptionist", rejected),
+    ).toContain("have not recorded");
+    expect(
+      reviewedReplyForPersona("routine", "receptionist", objected),
+    ).toContain("won’t pretend your request is resolved");
   });
 });
