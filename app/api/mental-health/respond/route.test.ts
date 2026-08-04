@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { POST, responseRuleForRoute } from "./route";
+import { POST, responseRuleForRoute, reviewedReplyForPersona } from "./route";
 import { edgeCaseManifest } from "../../../../utils/mentalHealthEdgeCases";
 
 function request(body: unknown) {
@@ -199,5 +199,17 @@ describe("response rules", () => {
     expect(rule).toContain("Maya");
     expect(rule).toContain("nothing is booked or saved");
     expect(rule).not.toBe(responseRuleForRoute("routine"));
+  });
+
+  it("keeps rejected routine turns inside a reviewed multi-turn close", () => {
+    expect(reviewedReplyForPersona("routine", "receptionist", 1)).toContain(
+      "Which time",
+    );
+    expect(reviewedReplyForPersona("routine", "receptionist", 2)).toContain(
+      "anything else",
+    );
+    expect(reviewedReplyForPersona("routine", "receptionist", 3)).toContain(
+      "completes this demonstration",
+    );
   });
 });

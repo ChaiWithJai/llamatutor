@@ -819,11 +819,7 @@ export default function MentalHealthDemo() {
       // audience a real six-plus-turn exchange instead of a one-shot chatbot.
       if (
         reply.route === "urgent" ||
-        (reply.conversationComplete &&
-          (callerTurns >= MIN_LIVE_CALLER_TURNS ||
-            reply.trace.some(
-              (stage) => stage.id === "output" && stage.status === "replaced",
-            )))
+        (reply.conversationComplete && callerTurns >= MIN_LIVE_CALLER_TURNS)
       ) {
         finishConversation(currentRun, "closed");
         return;

@@ -223,12 +223,19 @@ export function responseRuleForRoute(
   return "Offer one grounded reflection and one small practical next step, then ask one short question.";
 }
 
-function reviewedReplyForPersona(
+export function reviewedReplyForPersona(
   route: MentalHealthRoute,
   persona: HarnessPersona,
+  turnNumber = 1,
 ) {
   if (persona === "receptionist" && route === "routine") {
-    return "I couldn’t safely complete that live turn, so I’m ending this demonstration here. Nothing was booked or saved. Thank you for calling.";
+    if (turnNumber <= 1) {
+      return "For this demonstration, I can offer Tuesday at 2:00 PM or 3:30 PM. Nothing is booked or saved. Which time works better for you?";
+    }
+    if (turnNumber === 2) {
+      return "I’ve noted that choice for this demonstration only; nothing is booked or saved. Is there anything else you would like to ask before we close?";
+    }
+    return "That completes this demonstration call. Nothing was booked or saved. Thank you for calling, and take care.";
   }
   return reviewedReplies[route];
 }
@@ -371,7 +378,7 @@ export async function runLiveHarness(
     return {
       assessment,
       route,
-      reply: reviewedReplyForPersona(route, persona),
+      reply: reviewedReplyForPersona(route, persona, conversation?.turnNumber),
       provider: "together" as const,
       model: safetyModel,
       trace,
@@ -435,7 +442,7 @@ export async function runLiveHarness(
     route,
     reply: approved
       ? drafted.value.response
-      : reviewedReplyForPersona(route, persona),
+      : reviewedReplyForPersona(route, persona, conversation?.turnNumber),
     provider: "together" as const,
     model: `${safetyModel} · ${coachModel}`,
     trace,
@@ -444,7 +451,7 @@ export async function runLiveHarness(
         ? approved
           ? (drafted.value as z.infer<typeof callerCandidateSchema>)
               .conversationComplete
-          : true
+          : (conversation?.turnNumber ?? 1) >= 3
         : false,
   };
 }
