@@ -9,6 +9,7 @@ import {
   createLiveCallerAdapter,
   createSimulatedCallerAdapter,
   latencyBucket,
+  simulationResumeIndex,
   type CallMode,
   type CallerAdapter,
   type CallerTurnSource,
@@ -44,7 +45,8 @@ type AudioMode = "natural" | "visual";
 type SeatState = "empty" | "live" | "simulated";
 
 /** A live caller gets a bounded conversation, not an open-ended session. */
-const LIVE_CALLER_TURN_LIMIT = 6;
+const MIN_LIVE_CALLER_TURNS = 3;
+const LIVE_CALLER_TURN_LIMIT = 4;
 
 const DEFAULT_SAMPLE_SEED =
   process.env.NEXT_PUBLIC_EDGE_CASE_SEED ?? "webinar-2026";
@@ -89,6 +91,7 @@ type TranscriptEntry = {
 
 type CallerReply = MentalHealthDemoResult & {
   speechGrant?: ReviewedSpeechGrant | null;
+  conversationComplete?: boolean;
 };
 
 type ActiveCase = {
@@ -207,6 +210,7 @@ export default function MentalHealthDemo() {
   const adapterRef = useRef<CallerAdapter | null>(null);
   const modeRef = useRef<CallMode>("simulated");
   const routeRef = useRef<MentalHealthDemoResult["route"] | null>(null);
+  const entriesRef = useRef<TranscriptEntry[]>([]);
   const advanceTimer = useRef<number | null>(null);
   const pausedResume = useRef<(() => void) | null>(null);
   const preloadedAudio = useRef(new Map<number, Promise<string | null>>());
@@ -315,7 +319,8 @@ export default function MentalHealthDemo() {
   /* -------------------------------------------------------------- transcript */
 
   function reveal(entry: TranscriptEntry) {
-    setEntries((current) => [...current, entry]);
+    entriesRef.current = [...entriesRef.current, entry];
+    setEntries(entriesRef.current);
   }
 
   function wait(milliseconds: number, currentRun: number) {
@@ -542,7 +547,10 @@ export default function MentalHealthDemo() {
   /* ------------------------------------------------------------ live capture */
 
   async function requestMicrophone() {
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
       setMicState("unsupported");
       setLiveNotice(
         "This browser cannot open a microphone here, so the caller seat is typed.",
@@ -587,7 +595,9 @@ export default function MentalHealthDemo() {
       };
       recorder.onstop = () => {
         setRecording(false);
-        void submitClip(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
+        void submitClip(
+          new Blob(chunks, { type: recorder.mimeType || "audio/webm" }),
+        );
       };
       recorderRef.current = recorder;
       recorder.start();
@@ -759,18 +769,26 @@ export default function MentalHealthDemo() {
 
       let reply: CallerReply;
       try {
+        const history = entriesRef.current
+          .slice(0, -1)
+          .slice(-8)
+          .map(({ speaker, text }) => ({ speaker, text }));
         reply = (await requestHarness({
           mode: "caller",
           scenarioId: activeCase.id,
           message: callerTurn.text,
           acknowledged: true,
+          history,
+          turnNumber: callerTurns,
+          forceClose: callerTurns === LIVE_CALLER_TURN_LIMIT,
         })) as CallerReply;
       } catch {
-        setError(
-          "The reviewed reply is unavailable, so the call is closing rather than guessing.",
+        setLiveNotice(
+          "The live review is taking a pause. Completed turns are safe; continue as a reviewed simulation.",
         );
-        finishConversation(currentRun, "ended");
-        return;
+        setTypedOpen(true);
+        setPhase("listening");
+        continue;
       }
       if (isStale(currentRun)) return;
 
@@ -796,15 +814,23 @@ export default function MentalHealthDemo() {
         turnIndex: callerTurns,
       });
 
-      // Urgent stops the normal flow: reviewed resources, then a bounded close.
-      if (reply.route === "urgent") break;
+      // Urgent stops immediately after the reviewed resource response. A
+      // routine live call can close only after three caller turns, giving the
+      // audience a real six-plus-turn exchange instead of a one-shot chatbot.
+      if (
+        reply.route === "urgent" ||
+        (reply.conversationComplete &&
+          (callerTurns >= MIN_LIVE_CALLER_TURNS ||
+            reply.trace.some(
+              (stage) => stage.id === "output" && stage.status === "replaced",
+            )))
+      ) {
+        finishConversation(currentRun, "closed");
+        return;
+      }
     }
 
     if (isStale(currentRun)) return;
-    const close = activeCase.turns[activeCase.turns.length - 1];
-    if (close && close.speaker === "receptionist") {
-      await playScriptedTurn(activeCase.turns.length - 1, currentRun);
-    }
     finishConversation(currentRun, "closed");
   }
 
@@ -815,6 +841,7 @@ export default function MentalHealthDemo() {
     setMode(nextMode);
     routeRef.current = null;
     setPhase("connecting");
+    entriesRef.current = [];
     setEntries([]);
     setElapsedSeconds(0);
     audioModeRef.current = "natural";
@@ -872,11 +899,29 @@ export default function MentalHealthDemo() {
 
   /** Hands the seat to simulation without discarding completed turns. */
   function continueAsSimulation() {
+    const preservedEntries = entriesRef.current;
+    const completedCallerTurns = preservedEntries.filter(
+      (entry) => entry.speaker === "caller",
+    ).length;
+    const greetingPlayed = preservedEntries.some(
+      (entry) => entry.speaker === "receptionist",
+    );
+    const fromIndex = simulationResumeIndex(
+      activeCase.turns,
+      completedCallerTurns,
+      greetingPlayed,
+    );
+
+    // The generation bump cancels permission, capture, model, and audio work
+    // from the live seat before the simulated adapter can take ownership.
+    cancelMedia();
     const currentRun = runId.current;
-    // Completed turns survive the handover; only the seat changes occupant.
-    const completedTurns = entries.length;
-    adapterRef.current?.cancel();
-    stopCapture();
+    entriesRef.current = preservedEntries;
+    setEntries(preservedEntries);
+    modeRef.current = "simulated";
+    setMode("simulated");
+    setSeat("simulated");
+    setPhase("connecting");
     setTypedOpen(false);
     plausible("live_caller_fallback", {
       props: {
@@ -891,10 +936,20 @@ export default function MentalHealthDemo() {
           ? ", and the urgent route stays in force."
           : "."),
     );
-    adapterRef.current = createSimulatedCallerAdapter({
-      turns: activeCase.turns,
-    });
-    void runSimulatedCall(currentRun, completedTurns > 0 ? 1 : 0);
+    requestHarness({ mode: "guided", scenarioId: activeCase.id })
+      .then((payload) => {
+        if (isStale(currentRun) || routeRef.current === "urgent") return;
+        setResult(payload as MentalHealthDemoResult);
+        recordHarness(payload as MentalHealthDemoResult);
+      })
+      .catch(() => {
+        if (!isStale(currentRun)) {
+          setError(
+            "The decision trace is unavailable; the reviewed call can continue.",
+          );
+        }
+      });
+    void runSimulatedCall(currentRun, fromIndex);
   }
 
   function pauseCall() {
@@ -950,6 +1005,7 @@ export default function MentalHealthDemo() {
     cancelMedia();
     setPhase("idle");
     setSeat("empty");
+    entriesRef.current = [];
     setEntries([]);
     setElapsedSeconds(0);
     audioModeRef.current = "natural";
@@ -967,7 +1023,9 @@ export default function MentalHealthDemo() {
     if (callRunning || phase === "paused") return;
     resetCall();
     setScenarioId(id);
-    plausible("scenario_selected", { props: { scenario: id, synthetic: true } });
+    plausible("scenario_selected", {
+      props: { scenario: id, synthetic: true },
+    });
   }
 
   function sampleAnother() {
@@ -990,7 +1048,9 @@ export default function MentalHealthDemo() {
       setLiveResult(payload as MentalHealthDemoResult);
       recordHarness(payload as MentalHealthDemoResult);
     } catch {
-      setError("The live inspection is unavailable. The guided calls still work.");
+      setError(
+        "The live inspection is unavailable. The guided calls still work.",
+      );
     } finally {
       setLiveLoading(false);
     }
@@ -1070,8 +1130,9 @@ export default function MentalHealthDemo() {
               <i aria-hidden="true" />
               <p>
                 <strong>Educational prototype — not therapy.</strong> Calls are
-                synthetic and repeatable, and nothing you say is recorded or
-                saved. In the US, call or text 988 for real support.
+                synthetic and repeatable, and live audio is used only for
+                transcription—not retained or saved. In the US, call or text 988
+                for real support.
               </p>
             </div>
           </aside>
@@ -1085,10 +1146,7 @@ export default function MentalHealthDemo() {
               </div>
               <div className={styles.consoleMeter}>
                 {result && (
-                  <span
-                    className={styles.routePill}
-                    data-route={result.route}
-                  >
+                  <span className={styles.routePill} data-route={result.route}>
                     {result.route}
                   </span>
                 )}
@@ -1124,7 +1182,7 @@ export default function MentalHealthDemo() {
                     <p>
                       Joining as the caller uses your microphone for one turn at
                       a time, only while you hold the talk button. Audio is
-                      transcribed and discarded — nothing is recorded, stored,
+                      transcribed and discarded — nothing is retained, stored,
                       or sent to analytics. You can type instead at any point.
                     </p>
                     {(micState === "denied" || micState === "unsupported") && (
@@ -1153,7 +1211,9 @@ export default function MentalHealthDemo() {
                     <div className={styles.loopStrip}>
                       <div className={styles.loopStripHead}>
                         <span>Safety loop · application code</span>
-                        <strong data-route={result.route}>{result.route}</strong>
+                        <strong data-route={result.route}>
+                          {result.route}
+                        </strong>
                       </div>
                       <div className={styles.loopStages}>
                         {result.trace.map((stage, stageIndex) => (
@@ -1187,7 +1247,7 @@ export default function MentalHealthDemo() {
                   <strong>Call complete</strong>
                   <p>
                     The conversation reached a clear close. Nothing was booked,
-                    recorded, or saved.
+                    retained, or saved.
                   </p>
                 </div>
               )}
@@ -1247,7 +1307,10 @@ export default function MentalHealthDemo() {
                     >
                       Join as caller <span aria-hidden="true">→</span>
                     </button>
-                    <button type="button" onClick={() => beginCall("simulated")}>
+                    <button
+                      type="button"
+                      onClick={() => beginCall("simulated")}
+                    >
                       Run a simulation
                     </button>
                   </>
@@ -1267,7 +1330,9 @@ export default function MentalHealthDemo() {
                         <input
                           id="typed-turn"
                           value={typedValue}
-                          onChange={(event) => setTypedValue(event.target.value)}
+                          onChange={(event) =>
+                            setTypedValue(event.target.value)
+                          }
                           placeholder="Say something as the caller…"
                           autoComplete="off"
                         />
@@ -1303,7 +1368,9 @@ export default function MentalHealthDemo() {
                   </>
                 )}
 
-                {callStarted && mode === "simulated" && phase !== "complete" && (
+                {callStarted &&
+                  mode === "simulated" &&
+                  phase !== "complete" && (
                     <>
                       {phase === "paused" ? (
                         <button
@@ -1464,13 +1531,18 @@ export default function MentalHealthDemo() {
                 <button
                   type="submit"
                   disabled={
-                    liveLoading || !acknowledged || liveMessage.trim().length < 8
+                    liveLoading ||
+                    !acknowledged ||
+                    liveMessage.trim().length < 8
                   }
                 >
                   {liveLoading ? "Checking…" : "Run live check"}
                 </button>
                 {liveResult && (
-                  <div className={styles.liveResult} data-route={liveResult.route}>
+                  <div
+                    className={styles.liveResult}
+                    data-route={liveResult.route}
+                  >
                     <strong>{liveResult.route} route</strong>
                     <p>{liveResult.reply}</p>
                   </div>
@@ -1492,10 +1564,10 @@ export default function MentalHealthDemo() {
               <h2>What happens to what I say when I join as the caller?</h2>
               <p>
                 Your microphone opens only while you hold the talk button. The
-                clip is transcribed by a server-side adapter and discarded.
-                Nothing is recorded, stored in the browser, or sent to
-                analytics — only structured metadata such as mode, route, and a
-                latency bucket.
+                clip is transcribed by a server-side adapter and discarded. No
+                audio or raw transcript is retained, stored in the browser, or
+                sent to analytics — only structured metadata such as mode,
+                route, and a latency bucket.
               </p>
               <h2>What happens when the model fails?</h2>
               <p>

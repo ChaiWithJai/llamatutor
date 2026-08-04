@@ -65,9 +65,18 @@ async function installDemoAudio(page: Page, options: AudioOptions = {}) {
  */
 async function installLiveCaller(
   page: Page,
-  options: { permission?: "granted" | "denied"; transcript?: string } = {},
+  options: {
+    permission?: "granted" | "denied";
+    transcript?: string;
+    respondFailure?: boolean;
+  } = {},
 ) {
   const permission = options.permission ?? "granted";
+  const callerRequests: Array<{
+    mode?: string;
+    turnNumber?: number;
+    history?: Array<{ speaker: string; text: string }>;
+  }> = [];
 
   await page.route("**/api/mental-health/transcribe", async (route) => {
     await route.fulfill({
@@ -87,11 +96,31 @@ async function installLiveCaller(
   });
 
   await page.route("**/api/mental-health/respond", async (route) => {
-    const body = route.request().postDataJSON() as { mode?: string };
+    const body = route
+      .request()
+      .postDataJSON() as (typeof callerRequests)[number];
     if (body?.mode !== "caller") {
       await route.continue();
       return;
     }
+    callerRequests.push(body);
+    if (options.respondFailure) {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error:
+            "The live review is unavailable. Continue with the reviewed simulation.",
+        }),
+      });
+      return;
+    }
+    const turnNumber = body.turnNumber ?? 1;
+    const replies = [
+      "Happy to help. For this demonstration I can offer Tuesday at two thirty or four. Which works better? Nothing is booked or saved.",
+      "Tuesday at two thirty is the selected demonstration time. Is there anything else you need before we close? Nothing is booked or saved.",
+      "That completes this demonstration call. Thank you for calling, and take care. Nothing is booked or saved.",
+    ];
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -104,14 +133,38 @@ async function installLiveCaller(
           signals: ["ordinary scheduling request"],
         },
         route: "routine",
-        reply:
-          "Happy to help. For this demonstration I can offer Tuesday at two thirty. Nothing is booked or saved.",
+        reply: replies[Math.min(turnNumber - 1, replies.length - 1)],
+        conversationComplete: turnNumber >= 3,
         provider: "together",
         trace: [
-          { id: "input", label: "Input check", detail: "Schema valid", status: "passed", durationMs: 11 },
-          { id: "route", label: "Application route", detail: "routine policy selected", status: "routed", durationMs: 1 },
-          { id: "response", label: "Response policy", detail: "Bounded candidate buffered", status: "reviewed", durationMs: 6 },
-          { id: "output", label: "Output check", detail: "Approved before reveal", status: "passed", durationMs: 9 },
+          {
+            id: "input",
+            label: "Input check",
+            detail: "Schema valid",
+            status: "passed",
+            durationMs: 11,
+          },
+          {
+            id: "route",
+            label: "Application route",
+            detail: "routine policy selected",
+            status: "routed",
+            durationMs: 1,
+          },
+          {
+            id: "response",
+            label: "Response policy",
+            detail: "Bounded candidate buffered",
+            status: "reviewed",
+            durationMs: 6,
+          },
+          {
+            id: "output",
+            label: "Output check",
+            detail: "Approved before reveal",
+            status: "passed",
+            durationMs: 9,
+          },
         ],
         speechGrant: {
           text: "Happy to help.",
@@ -156,6 +209,8 @@ async function installLiveCaller(
       },
     });
   }, permission === "granted");
+
+  return callerRequests;
 }
 
 async function speakOneLiveTurn(page: Page) {
@@ -359,6 +414,38 @@ test("declined microphone permission offers typed input without restarting", asy
   await expect(page.getByText("Caller · typed")).toBeVisible();
 });
 
+test("typed live caller completes a context-preserving multi-turn call", async ({
+  page,
+}) => {
+  await installDemoAudio(page, { autoEnd: true });
+  const requests = await installLiveCaller(page, { permission: "denied" });
+  await page.goto("/mental-health");
+
+  await page.getByRole("button", { name: "Join as caller" }).click();
+  const field = page.getByRole("textbox", { name: "Type this turn" });
+  const turns = [
+    "I need a virtual appointment next Tuesday.",
+    "Tuesday at two thirty works for me.",
+    "That is all, thank you and goodbye.",
+  ];
+  for (const turn of turns) {
+    await expect(field).toBeVisible();
+    await field.fill(turn);
+    await page.getByRole("button", { name: "Send turn" }).click();
+    await expect(page.getByText(turn, { exact: true })).toBeVisible();
+  }
+
+  await expect(page.getByText("Call complete", { exact: true })).toBeVisible();
+  await expect(page.locator("article[data-speaker]")).toHaveCount(7);
+  expect(requests).toHaveLength(3);
+  expect(requests[0].history).toHaveLength(1);
+  expect(requests[1].history).toHaveLength(3);
+  expect(requests[2].history).toHaveLength(5);
+  expect(requests[2].history?.map((turn) => turn.text)).toContain(
+    "Tuesday at two thirty works for me.",
+  );
+});
+
 test("a live call can continue as a simulation without losing turns", async ({
   page,
 }) => {
@@ -380,9 +467,40 @@ test("a live call can continue as a simulation without losing turns", async ({
   await expect(page.getByText("Call complete", { exact: true })).toBeVisible({
     timeout: 25_000,
   });
+  await expect(
+    page.getByText("Thanks for calling Dharmic Care", { exact: false }),
+  ).toHaveCount(1);
   expect(await page.locator("article[data-speaker]").count()).toBeGreaterThan(
     before,
   );
+});
+
+test("provider failure keeps completed live turns and offers owned simulation failover", async ({
+  page,
+}) => {
+  await installDemoAudio(page, { autoEnd: true });
+  await installLiveCaller(page, {
+    permission: "denied",
+    respondFailure: true,
+  });
+  await page.goto("/mental-health");
+
+  await page.getByRole("button", { name: "Join as caller" }).click();
+  const field = page.getByRole("textbox", { name: "Type this turn" });
+  await field.fill("I need an appointment next Tuesday.");
+  await page.getByRole("button", { name: "Send turn" }).click();
+
+  await expect(
+    page.getByText("live review is taking a pause", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Continue as simulation" }).click();
+  await expect(page.getByText("Call complete", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("I need an appointment next Tuesday.", { exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByText("Thanks for calling Dharmic Care", { exact: false }),
+  ).toHaveCount(1);
 });
 
 test("ending a live call cancels pending work and stops stale audio", async ({
@@ -400,9 +518,9 @@ test("ending a live call cancels pending work and stops stale audio", async ({
   const settled = await page.locator("article[data-speaker]").count();
   await page.getByRole("button", { name: "End call" }).click();
   await expect(page.getByRole("button", { name: "Replay call" })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Hold to talk" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Hold to talk" })).toHaveCount(
+    0,
+  );
 
   // Nothing may arrive after the call ended.
   await page.waitForTimeout(600);
@@ -447,8 +565,13 @@ test("build details open as overlays without pushing the call off screen", async
   const before = await page.evaluate(
     () => document.documentElement.scrollHeight,
   );
-  await page.locator("summary").filter({ hasText: "How we built this" }).click();
-  await expect(page.getByText("The model proposes. Policy routes.")).toBeVisible();
+  await page
+    .locator("summary")
+    .filter({ hasText: "How we built this" })
+    .click();
+  await expect(
+    page.getByText("The model proposes. Policy routes."),
+  ).toBeVisible();
   const after = await page.evaluate(
     () => document.documentElement.scrollHeight,
   );

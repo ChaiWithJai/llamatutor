@@ -115,7 +115,10 @@ export function createLiveCallerAdapter(): LiveCallerAdapter {
     },
     submitEvents(events) {
       if (cancelled) return;
-      const state = events.reduce(applyTranscriptEvent, initialVoiceTurnState());
+      const state = events.reduce(
+        applyTranscriptEvent,
+        initialVoiceTurnState(),
+      );
       const text = finalTranscript(state);
       settle({
         id: `live-${turnCounter}`,
@@ -163,4 +166,26 @@ export function latencyBucket(milliseconds: number) {
   if (milliseconds < 1500) return "500ms_1500ms";
   if (milliseconds < 4000) return "1500ms_4000ms";
   return "over_4000ms";
+}
+
+/**
+ * Find the first scripted turn the fallback still owes the audience.
+ * A live greeting and each completed live caller turn replace the equivalent
+ * positions in the reviewed script; they must never be replayed after handoff.
+ */
+export function simulationResumeIndex(
+  turns: VoiceConversationTurn[],
+  completedCallerTurns: number,
+  greetingPlayed: boolean,
+) {
+  if (!greetingPlayed) return 0;
+
+  let callersSeen = 0;
+  for (let index = 0; index < turns.length; index += 1) {
+    if (turns[index].speaker !== "caller") continue;
+    if (callersSeen >= completedCallerTurns) return index;
+    callersSeen += 1;
+  }
+
+  return turns.length;
 }

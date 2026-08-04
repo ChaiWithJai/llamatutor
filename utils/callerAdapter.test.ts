@@ -3,6 +3,7 @@ import {
   createLiveCallerAdapter,
   createSimulatedCallerAdapter,
   latencyBucket,
+  simulationResumeIndex,
 } from "./callerAdapter";
 import { getVoiceConversation } from "./mentalHealthPolicy";
 
@@ -127,5 +128,22 @@ describe("operational metadata", () => {
     expect(latencyBucket(900)).toBe("500ms_1500ms");
     expect(latencyBucket(2500)).toBe("1500ms_4000ms");
     expect(latencyBucket(9000)).toBe("over_4000ms");
+  });
+});
+
+describe("live-to-simulation handoff", () => {
+  it("does not replay the greeting or completed caller turns", () => {
+    expect(simulationResumeIndex(conversation.turns, 0, true)).toBe(1);
+    expect(simulationResumeIndex(conversation.turns, 1, true)).toBe(3);
+    expect(simulationResumeIndex(conversation.turns, 0, false)).toBe(0);
+  });
+
+  it("finishes when the live caller already completed the reviewed script", () => {
+    const callerCount = conversation.turns.filter(
+      (turn) => turn.speaker === "caller",
+    ).length;
+    expect(simulationResumeIndex(conversation.turns, callerCount, true)).toBe(
+      conversation.turns.length,
+    );
   });
 });

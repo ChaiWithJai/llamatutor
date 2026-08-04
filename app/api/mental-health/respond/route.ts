@@ -33,6 +33,17 @@ const requestSchema = z.discriminatedUnion("mode", [
     scenarioId: z.string().min(1).max(80),
     message: z.string().trim().min(1).max(1200),
     acknowledged: z.literal(true),
+    turnNumber: z.number().int().min(1).max(6).default(1),
+    forceClose: z.boolean().default(false),
+    history: z
+      .array(
+        z.object({
+          speaker: z.enum(["caller", "receptionist"]),
+          text: z.string().trim().min(1).max(1200),
+        }),
+      )
+      .max(8)
+      .default([]),
   }),
 ]);
 
@@ -45,6 +56,9 @@ const assessmentSchema = z.object({
 });
 
 const candidateSchema = z.object({ response: z.string().min(1).max(1800) });
+const callerCandidateSchema = candidateSchema.extend({
+  conversationComplete: z.boolean(),
+});
 const outputCheckSchema = z.object({
   approved: z.boolean(),
   confidence: z.number().min(0).max(1),
@@ -88,6 +102,16 @@ const candidateJsonSchema = {
   additionalProperties: false,
   required: ["response"],
   properties: { response: { type: "string", minLength: 1, maxLength: 1800 } },
+} as const;
+
+const callerCandidateJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["response", "conversationComplete"],
+  properties: {
+    response: { type: "string", minLength: 1, maxLength: 1800 },
+    conversationComplete: { type: "boolean" },
+  },
 } as const;
 
 const outputCheckJsonSchema = {
@@ -155,7 +179,7 @@ async function togetherJson<T>(options: {
         },
       },
     }),
-    signal: AbortSignal.timeout(options.timeoutMs ?? 12000),
+    signal: AbortSignal.timeout(options.timeoutMs ?? 18000),
   });
 
   if (!response.ok) {
@@ -197,6 +221,16 @@ export function responseRuleForRoute(
     return "Answer as Maya, a virtual receptionist on a demonstration line. Offer only demonstration appointment times, ask at most one question, and say plainly that nothing is booked or saved. Never confirm a real appointment, quote a price, or confirm insurance coverage.";
   }
   return "Offer one grounded reflection and one small practical next step, then ask one short question.";
+}
+
+function reviewedReplyForPersona(
+  route: MentalHealthRoute,
+  persona: HarnessPersona,
+) {
+  if (persona === "receptionist" && route === "routine") {
+    return "I couldn’t safely complete that live turn, so I’m ending this demonstration here. Nothing was booked or saved. Thank you for calling.";
+  }
+  return reviewedReplies[route];
 }
 
 export async function assessMentalHealthInput(message: string) {
@@ -265,11 +299,34 @@ export async function reviewMentalHealthOutput(options: {
 export async function runLiveHarness(
   message: string,
   persona: HarnessPersona = "reflection",
+  conversation?: {
+    history: Array<{ speaker: "caller" | "receptionist"; text: string }>;
+    turnNumber: number;
+    forceClose: boolean;
+  },
 ) {
   const safetyModel = process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B";
   const coachModel = process.env.TOGETHER_COACH_MODEL ?? safetyModel;
 
-  const assessed = await assessMentalHealthInput(message);
+  const boundedTranscript = conversation
+    ? [
+        ...conversation.history.slice(-8),
+        { speaker: "caller" as const, text: message },
+      ]
+        .map((turn) => `${turn.speaker.toUpperCase()}: ${turn.text}`)
+        .join("\n")
+    : message;
+  const safetyTranscript = conversation
+    ? [
+        ...conversation.history
+          .filter((turn) => turn.speaker === "caller")
+          .slice(-4),
+        { speaker: "caller" as const, text: message },
+      ]
+        .map((turn) => `CALLER: ${turn.text}`)
+        .join("\n")
+    : message;
+  const assessed = await assessMentalHealthInput(safetyTranscript);
   const assessment = assessed.assessment;
   const route = deriveMentalHealthRoute(assessment);
   const trace: HarnessStage[] = [
@@ -314,10 +371,11 @@ export async function runLiveHarness(
     return {
       assessment,
       route,
-      reply: reviewedReplies[route],
+      reply: reviewedReplyForPersona(route, persona),
       provider: "together" as const,
       model: safetyModel,
       trace,
+      conversationComplete: persona === "receptionist",
     };
   }
 
@@ -325,15 +383,26 @@ export async function runLiveHarness(
 
   const drafted = await togetherJson({
     model: coachModel,
-    name: "reflection_candidate",
-    schema: candidateJsonSchema,
-    validator: candidateSchema,
+    name:
+      persona === "receptionist"
+        ? "receptionist_conversation_candidate"
+        : "reflection_candidate",
+    schema:
+      persona === "receptionist"
+        ? callerCandidateJsonSchema
+        : candidateJsonSchema,
+    validator:
+      persona === "receptionist" ? callerCandidateSchema : candidateSchema,
     messages: [
       {
         role: "system",
-        content: `You write a response for an educational ${persona === "receptionist" ? "receptionist" : "reflection"} demo. ${responseRule} Use no more than 90 words. Never diagnose, prescribe treatment, claim a human is monitoring, or claim to be a therapist.`,
+        content: `You write a response for an educational ${persona === "receptionist" ? "receptionist" : "reflection"} demo. ${responseRule} Use no more than 90 words. Never diagnose, prescribe treatment, claim a human is monitoring, or claim to be a therapist.${
+          persona === "receptionist"
+            ? ` This is caller turn ${conversation?.turnNumber ?? 1}. Use the bounded transcript so this is genuinely multi-turn. Never greet or reintroduce Maya after turn one. Never repeat a question already answered. Ask at most one next question. Set conversationComplete true when the caller says goodbye or the task is resolved. ${conversation?.forceClose ? "This is the final turn: close the demonstration clearly and set conversationComplete true." : "Do not close merely because a turn ended."}`
+            : ""
+        }`,
       },
-      { role: "user", content: message },
+      { role: "user", content: boundedTranscript },
     ],
   });
   trace.push({
@@ -345,7 +414,7 @@ export async function runLiveHarness(
   });
 
   const checked = await reviewMentalHealthOutput({
-    message,
+    message: boundedTranscript,
     candidate: drafted.value.response,
     route,
     persona,
@@ -364,10 +433,19 @@ export async function runLiveHarness(
   return {
     assessment,
     route,
-    reply: approved ? drafted.value.response : reviewedReplies[route],
+    reply: approved
+      ? drafted.value.response
+      : reviewedReplyForPersona(route, persona),
     provider: "together" as const,
     model: `${safetyModel} · ${coachModel}`,
     trace,
+    conversationComplete:
+      persona === "receptionist"
+        ? approved
+          ? (drafted.value as z.infer<typeof callerCandidateSchema>)
+              .conversationComplete
+          : true
+        : false,
   };
 }
 
@@ -414,15 +492,23 @@ export async function POST(request: Request) {
     // The live seat runs the same boundary as the text lab: assess, route,
     // generate only when the route allows it, then review the complete
     // response. Only text that survives that review is signed for speech.
-    let result: MentalHealthDemoResult;
+    let result: MentalHealthDemoResult & { conversationComplete?: boolean };
     try {
-      result = await runLiveHarness(parsed.data.message, "receptionist");
+      result = await runLiveHarness(parsed.data.message, "receptionist", {
+        history: parsed.data.history,
+        turnNumber: parsed.data.turnNumber,
+        forceClose: parsed.data.forceClose,
+      });
     } catch (error) {
-      const reason =
-        error instanceof Error && error.name === "TimeoutError"
-          ? "Classifier timed out"
-          : "Live classifier unavailable";
-      result = buildFallbackResult(reason);
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error && error.name === "TimeoutError"
+              ? "The live review took too long. Continue with the reviewed simulation."
+              : "The live review is unavailable. Continue with the reviewed simulation.",
+        },
+        { status: 503 },
+      );
     }
 
     return NextResponse.json({

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { POST, responseRuleForRoute } from "./route";
 import { edgeCaseManifest } from "../../../../utils/mentalHealthEdgeCases";
-import { verifyReviewedSpeechGrant } from "../../../../utils/reviewedSpeechGrant";
 
 function request(body: unknown) {
   return new Request("http://localhost/api/mental-health/respond", {
@@ -115,7 +114,25 @@ describe("mental health demo endpoint", () => {
     ).resolves.toBe(400);
   });
 
-  it("accepts a one-word live caller turn and fails closed without a provider", async () => {
+  it("bounds the live caller transcript before it reaches the harness", async () => {
+    const response = await POST(
+      request({
+        mode: "caller",
+        scenarioId: "voice-booking",
+        message: "Tuesday please",
+        acknowledged: true,
+        turnNumber: 2,
+        history: Array.from({ length: 9 }, (_, index) => ({
+          speaker: index % 2 === 0 ? "receptionist" : "caller",
+          text: `Synthetic turn ${index}`,
+        })),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("accepts a one-word live caller turn and owns provider failover", async () => {
     const previousKey = process.env.TOGETHER_API_KEY;
     const previousSecret = process.env.MENTAL_HEALTH_SPEECH_SECRET;
     delete process.env.TOGETHER_API_KEY;
@@ -131,14 +148,10 @@ describe("mental health demo endpoint", () => {
       );
       const body = await response.json();
 
-      expect(response.status).toBe(200);
-      // No classifier means abstention, and abstention is elevated—not routine.
-      expect(body.route).toBe("elevated");
-      expect(body.provider).toBe("fallback");
-      expect(body.assessment.abstain).toBe(true);
-      // Only text that survived review is signed for speech.
-      expect(body.speechGrant.text).toBe(body.reply);
-      expect(verifyReviewedSpeechGrant(body.speechGrant)).toBe(true);
+      expect(response.status).toBe(503);
+      expect(body.error).toContain("reviewed simulation");
+      expect(body).not.toHaveProperty("reply");
+      expect(body).not.toHaveProperty("speechGrant");
     } finally {
       if (previousKey === undefined) delete process.env.TOGETHER_API_KEY;
       else process.env.TOGETHER_API_KEY = previousKey;
