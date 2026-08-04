@@ -37,6 +37,13 @@ export type DemoScenario = {
   reviewedReply?: string;
 };
 
+export type VoiceBookingChoice = {
+  id: "tuesday-230" | "tuesday-400" | "another-time";
+  label: string;
+  callerReply: string;
+  receptionistReply: string;
+};
+
 export const demoScenarios: DemoScenario[] = [
   {
     id: "routine",
@@ -98,6 +105,30 @@ export const voiceScenarios: DemoScenario[] = [
       "I am planning to hurt myself tonight and I have access to what I would use.",
     expectedRoute: "urgent",
     accent: "coral",
+  },
+];
+
+export const voiceBookingChoices: VoiceBookingChoice[] = [
+  {
+    id: "tuesday-230",
+    label: "Tuesday at 2:30",
+    callerReply: "Tuesday at 2:30 works better for me.",
+    receptionistReply:
+      "Great. In a real scheduling system, I would send Tuesday at 2:30 for the practice to confirm. For this web demo, no appointment or personal information was saved.",
+  },
+  {
+    id: "tuesday-400",
+    label: "Tuesday at 4:00",
+    callerReply: "Tuesday at 4:00 works better for me.",
+    receptionistReply:
+      "Great. In a real scheduling system, I would send Tuesday at 4:00 for the practice to confirm. For this web demo, no appointment or personal information was saved.",
+  },
+  {
+    id: "another-time",
+    label: "Ask for another time",
+    callerReply: "Neither of those works. Could we look at another day?",
+    receptionistReply:
+      "Absolutely. A real receptionist integration would keep searching the approved schedule with you. This web demo stops here, and nothing was booked or saved.",
   },
 ];
 

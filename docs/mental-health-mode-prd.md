@@ -5,8 +5,8 @@ Status: accepted contract for a non-clinical masterclass demonstration
 ## Outcome
 
 A visitor should understand the practical value before seeing the machinery:
-an AI voice receptionist can listen, choose a useful next step, speak, stop when
-interrupted, and change course when a caller's language requires more care.
+an AI voice receptionist can welcome a caller, clarify a practical request,
+remember the answer, propose a useful next step, and stop when interrupted.
 
 The voice interaction owns at least 80% of the first-screen attention. Safety
 architecture, evaluation evidence, privacy notes, and infrastructure are
@@ -16,9 +16,9 @@ feel like a product demo first and a technical teardown second.
 The masterclass succeeds when a viewer can:
 
 1. start a representative call without onboarding;
-2. hear and see the receptionist handle a normal scheduling request;
-3. interrupt spoken output and understand that stale audio was cancelled;
-4. compare routine, ambiguous, and urgent call outcomes; and
+2. complete a multi-turn scheduling request with one meaningful choice;
+3. interrupt and resume spoken output without losing the conversation;
+4. optionally inspect ambiguous and urgent call outcomes; and
 5. inspect the transferable implementation only when they ask for it.
 
 ## Positioning and boundaries
@@ -31,13 +31,14 @@ Initial public scope:
 
 - synthetic adult, US-oriented calls;
 - browser speech synthesis, transcript, call state, interruption, and outcomes;
+- deliberate on-screen caller choices for a reliable multi-turn webinar;
 - reviewed booking, clarification, and urgent response copy;
 - an optional acknowledged live Together text guardrail;
 - no microphone, phone number, sign-in, persistence, outbound message, or alert;
 - no claim that a human is listening or will intervene.
 
-The browser simulation must never be represented as live telephony. A real
-phone adapter remains a separate runtime and acceptance slice.
+The browser simulation must never be represented as live telephony. Phone
+numbers and a real-time media runtime are explicitly outside this demo scope.
 
 ## Experience contract
 
@@ -46,23 +47,25 @@ phone adapter remains a separate runtime and acceptance slice.
 The page opens directly on the call experience. It contains:
 
 - one concise outcome-oriented headline;
-- three compact synthetic caller choices;
+- one reassuring scheduling example, with risk examples behind disclosure;
 - a dominant receptionist console with call state and transcript;
 - one unmistakable **Start demo call** control;
 - a visible **Interrupt voice** control while speech is queued;
 - a call outcome that explains what useful work was completed; and
 - a commercial invitation only after non-urgent outcomes.
 
-The call state machine is:
+The routine call state machine is:
 
 ```text
-idle → connecting → listening → deciding → speaking → complete
-                                           └→ interrupted
+idle → connecting → listening → deciding → speaking → visitor choice
+                                           └→ interrupted      |
+                                                ↑               v
+                                                └── resume ← deciding → speaking → complete
 ```
 
-Interruption cancels browser speech immediately. The future phone adapter must
-also cancel the provider TTS context and clear Twilio's queued media before the
-next turn.
+Interruption cancels browser speech immediately while preserving the current
+approved turn. Resume repeats only that turn and returns to the correct point
+in the conversation.
 
 ### Progressive disclosure
 
@@ -101,18 +104,17 @@ Unchecked generated text never enters the UI or audio queue.
 - Browser speech synthesis makes speaking and cancellation demonstrable without
   collecting microphone or phone data.
 
-### Phone adapter
+### Web-only multi-turn adapter
 
 ```text
-Caller → Twilio Media Streams → bounded DigitalOcean voice worker
-       → Together realtime STT → typed safety turn contract
-       → approved response → Together realtime TTS → Twilio → Caller
+Visitor choice → React conversation state → typed safety route
+               → approved response → browser speech → visitor
 ```
 
-Netlify stays the web/control plane. The already-paid DigitalOcean Droplet is a
-candidate long-running media plane only after Issue #58's snapshot, ingress,
-firewall, isolation, monitoring, and rollback gates pass. It holds no durable
-call data and runs no local model.
+Netlify serves the complete demo. No phone number, Twilio/LiveKit connection,
+DigitalOcean worker, microphone permission, or raw audio transport is needed.
+This keeps the masterclass reproducible while preserving the application-owned
+policy and cancellation seams that could later support another channel.
 
 ## Evaluation and governance
 
@@ -131,9 +133,10 @@ clinical safety. A separately reviewed route overlay, held-out cases, and
 voice transcript perturbations remain required before broader release.
 
 Issue #55 owns versioned thresholds, reviewer annotation, incident history,
-kill-switch drills, and release evidence. Issue #57 owns phone lifecycle,
-partial/final transcripts, barge-in, provider loss, transfer, reconnect, and
-audio-queue acceptance. Issue #58 owns the reversible host baseline.
+kill-switch drills, and release evidence. Issue #57 owns the web-only
+multi-turn lifecycle, interruption recovery, and acceptance evidence. Issue
+#63 owns the reassuring experience outcome. Issue #58 is closed as not planned
+for this demo and remains only as future telephony prior art.
 
 ## Data contract
 
@@ -148,7 +151,8 @@ audio-queue acceptance. Issue #58 owns the reversible host baseline.
 ## Acceptance gates
 
 - the voice demo is the dominant first-screen surface at 390, 830, and 1353 px;
-- normal, elevated, and urgent synthetic calls reach their expected outcomes;
+- the routine call includes a clarification, visitor choice, and honest next step;
+- disclosed elevated and urgent synthetic calls reach their expected outcomes;
 - urgent output contains reviewed resources and no commercial CTA;
 - barge-in cancels current audio and shows a legible recovery state;
 - the safety trace is collapsed by default and keyboard reachable;
@@ -163,9 +167,9 @@ audio-queue acceptance. Issue #58 owns the reversible host baseline.
 1. License or written permission for CI use or redistribution of the external corpus.
 2. Named clinical and lived-experience reviewers for route overlays and claims.
 3. Any expansion beyond a synthetic adult US engineering demo.
-4. Privacy, retention, consent, incident, and kill-switch ownership for real calls.
-5. Destructive or availability-affecting changes to the shared Droplet.
-6. Twilio phone number, DNS, quotas, and production voice credentials.
+4. Privacy, retention, consent, incident, and kill-switch ownership for any
+   future real calls.
+5. Any future phone number, runtime, credentials, or shared-host changes.
 
 ## Primary references
 

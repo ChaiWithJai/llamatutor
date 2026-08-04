@@ -7,9 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import styles from "@/app/mental-health/mental-health.module.css";
 import {
   MENTAL_HEALTH_POLICY_VERSION,
+  voiceBookingChoices,
   voiceScenarios,
   type DemoScenario,
   type MentalHealthDemoResult,
+  type VoiceBookingChoice,
 } from "@/utils/mentalHealthPolicy";
 
 type CallState =
@@ -18,6 +20,7 @@ type CallState =
   | "listening"
   | "thinking"
   | "speaking"
+  | "awaitingChoice"
   | "interrupted"
   | "complete";
 
@@ -32,6 +35,7 @@ type VoiceAnalytics = {
   };
   voice_demo_started: { scenario: string };
   voice_demo_interrupted: { scenario: string };
+  voice_demo_choice: { choice: string };
   voice_cta_selected: { route: string; policy: string };
   experiment_exited: { surface: "header" };
 };
@@ -42,14 +46,15 @@ const stateCopy: Record<CallState, string> = {
   listening: "Listening to the caller",
   thinking: "Finding the right next step",
   speaking: "Receptionist is speaking",
-  interrupted: "Audio stopped—queue cleared",
-  complete: "Call turn complete",
+  awaitingChoice: "Your turn—choose what works",
+  interrupted: "Audio paused—conversation kept",
+  complete: "Conversation complete",
 };
 
 const outcomeCopy = {
   routine: {
-    label: "Appointment options ready",
-    body: "The receptionist understood the request and moved the caller toward a useful next step.",
+    label: "Next step proposed",
+    body: "The receptionist clarified the request and prepared a time for the practice to confirm. Nothing was booked or saved.",
   },
   elevated: {
     label: "Safety clarification asked",
@@ -117,6 +122,10 @@ export default function MentalHealthDemo() {
   const [scenarioId, setScenarioId] = useState(voiceScenarios[0].id);
   const [callState, setCallState] = useState<CallState>("idle");
   const [result, setResult] = useState<MentalHealthDemoResult | null>(null);
+  const [bookingChoice, setBookingChoice] = useState<VoiceBookingChoice | null>(
+    null,
+  );
+  const [followUpReply, setFollowUpReply] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
@@ -125,7 +134,10 @@ export default function MentalHealthDemo() {
   );
   const [liveLoading, setLiveLoading] = useState(false);
   const runId = useRef(0);
+  const speechId = useRef(0);
   const completionTimer = useRef<number | null>(null);
+  const currentSpeech = useRef("");
+  const stateAfterSpeech = useRef<CallState>("complete");
   const selectedScenario =
     voiceScenarios.find((scenario) => scenario.id === scenarioId) ??
     voiceScenarios[0];
@@ -141,6 +153,7 @@ export default function MentalHealthDemo() {
   }, [plausible]);
 
   function cancelSpeech() {
+    speechId.current += 1;
     window.speechSynthesis?.cancel();
     if (completionTimer.current !== null) {
       window.clearTimeout(completionTimer.current);
@@ -148,16 +161,25 @@ export default function MentalHealthDemo() {
     }
   }
 
-  function finishAfterSpeech(reply: string, currentRun: number) {
+  function finishAfterSpeech(
+    reply: string,
+    currentRun: number,
+    nextState: CallState,
+  ) {
+    currentSpeech.current = reply;
+    stateAfterSpeech.current = nextState;
+    const currentSpeechId = speechId.current + 1;
+    speechId.current = currentSpeechId;
     const utterance = new SpeechSynthesisUtterance(reply);
     utterance.rate = 0.96;
     utterance.pitch = 1.02;
     const complete = () => {
+      if (speechId.current !== currentSpeechId) return;
       if (completionTimer.current !== null) {
         window.clearTimeout(completionTimer.current);
         completionTimer.current = null;
       }
-      if (runId.current === currentRun) setCallState("complete");
+      if (runId.current === currentRun) setCallState(nextState);
     };
     utterance.onend = complete;
     utterance.onerror = complete;
@@ -165,7 +187,7 @@ export default function MentalHealthDemo() {
     window.speechSynthesis.speak(utterance);
     completionTimer.current = window.setTimeout(
       complete,
-      Math.min(5200, Math.max(1800, reply.length * 24)),
+      Math.min(3600, Math.max(1200, reply.length * 20)),
     );
   }
 
@@ -200,6 +222,8 @@ export default function MentalHealthDemo() {
     runId.current = currentRun;
     cancelSpeech();
     setResult(null);
+    setBookingChoice(null);
+    setFollowUpReply(null);
     setError(null);
     setCallState("connecting");
     plausible("voice_demo_started", { props: { scenario: scenario.id } });
@@ -223,7 +247,11 @@ export default function MentalHealthDemo() {
       setResult(payload);
       recordCompletion(payload);
       setCallState("speaking");
-      finishAfterSpeech(payload.reply, currentRun);
+      finishAfterSpeech(
+        payload.reply,
+        currentRun,
+        scenario.id === "voice-booking" ? "awaitingChoice" : "complete",
+      );
     } catch (runError) {
       if (runId.current !== currentRun) return;
       setError(
@@ -243,11 +271,36 @@ export default function MentalHealthDemo() {
     setCallState("interrupted");
   }
 
+  function resumeCall() {
+    if (!currentSpeech.current) return;
+    setCallState("speaking");
+    finishAfterSpeech(
+      currentSpeech.current,
+      runId.current,
+      stateAfterSpeech.current,
+    );
+  }
+
+  async function chooseBookingTime(choice: VoiceBookingChoice) {
+    const currentRun = runId.current;
+    setBookingChoice(choice);
+    setFollowUpReply(null);
+    setCallState("thinking");
+    plausible("voice_demo_choice", { props: { choice: choice.id } });
+    await delay(520);
+    if (runId.current !== currentRun) return;
+    setFollowUpReply(choice.receptionistReply);
+    setCallState("speaking");
+    finishAfterSpeech(choice.receptionistReply, currentRun, "complete");
+  }
+
   function resetCall() {
     runId.current += 1;
     cancelSpeech();
     setCallState("idle");
     setResult(null);
+    setBookingChoice(null);
+    setFollowUpReply(null);
     setError(null);
   }
 
@@ -293,21 +346,23 @@ export default function MentalHealthDemo() {
       <main id="main" className={styles.main}>
         <section className={styles.voiceHero} aria-labelledby="voice-title">
           <div className={styles.heroCopy}>
-            <p>AI voice receptionist · browser demo</p>
+            <p>Synthetic AI receptionist · web-only demo</p>
             <h1 id="voice-title">
-              Hear it handle the call. <em>Then interrupt it.</em>
+              A calm front desk, <em>one turn at a time.</em>
             </h1>
             <span>
-              Choose a caller, start the demo, and watch the receptionist
-              listen, respond, and change course when risk appears.
+              Start with a familiar scheduling request. The receptionist asks
+              one useful question, remembers your answer, and explains the next
+              step—without saving anything.
             </span>
           </div>
 
           <div
             className={styles.scenarioPicker}
+            data-count="1"
             aria-label="Choose a demo call"
           >
-            {voiceScenarios.map((scenario) => (
+            {voiceScenarios.slice(0, 1).map((scenario) => (
               <button
                 type="button"
                 key={scenario.id}
@@ -361,7 +416,7 @@ export default function MentalHealthDemo() {
                   </article>
                 )}
 
-                {callState === "thinking" && (
+                {callState === "thinking" && !bookingChoice && (
                   <div className={styles.thinking}>
                     <i /> <i /> <i />
                     <span>Preparing the next safe turn</span>
@@ -369,9 +424,48 @@ export default function MentalHealthDemo() {
                 )}
 
                 {showAssistant && (
-                  <article data-speaker="receptionist" data-latest="true">
+                  <article
+                    data-speaker="receptionist"
+                    data-latest={followUpReply ? undefined : "true"}
+                  >
                     <span>Receptionist</span>
                     <p>{result.reply}</p>
+                  </article>
+                )}
+
+                {callState === "awaitingChoice" && (
+                  <fieldset className={styles.turnChoices}>
+                    <legend>What would you say next?</legend>
+                    {voiceBookingChoices.map((choice) => (
+                      <button
+                        type="button"
+                        key={choice.id}
+                        onClick={() => chooseBookingTime(choice)}
+                      >
+                        {choice.label} <span aria-hidden="true">→</span>
+                      </button>
+                    ))}
+                  </fieldset>
+                )}
+
+                {bookingChoice && (
+                  <article data-speaker="caller">
+                    <span>Caller</span>
+                    <p>{bookingChoice.callerReply}</p>
+                  </article>
+                )}
+
+                {callState === "thinking" && bookingChoice && (
+                  <div className={styles.thinking}>
+                    <i /> <i /> <i />
+                    <span>Preparing the confirmation</span>
+                  </div>
+                )}
+
+                {followUpReply && (
+                  <article data-speaker="receptionist" data-latest="true">
+                    <span>Receptionist</span>
+                    <p>{followUpReply}</p>
                   </article>
                 )}
 
@@ -407,7 +501,15 @@ export default function MentalHealthDemo() {
                     <span aria-hidden="true">■</span>
                     Interrupt voice
                   </button>
-                ) : callState === "interrupted" || callState === "complete" ? (
+                ) : callState === "interrupted" ? (
+                  <button
+                    type="button"
+                    className={styles.primaryCallButton}
+                    onClick={resumeCall}
+                  >
+                    Resume conversation
+                  </button>
+                ) : callState === "complete" ? (
                   <button
                     type="button"
                     className={styles.primaryCallButton}
@@ -427,10 +529,12 @@ export default function MentalHealthDemo() {
 
                 <p>
                   {callState === "speaking"
-                    ? "Interrupt now to test barge-in and stale-audio cancellation."
+                    ? "You can pause the voice without losing your place."
                     : callState === "interrupted"
-                      ? "The browser voice stopped immediately. A phone worker would also clear Twilio’s queued audio."
-                      : "Audio is generated by your browser. No microphone or phone number is used."}
+                      ? "The browser voice stopped. Resume when you are ready."
+                      : callState === "awaitingChoice"
+                        ? "Choose a reply to continue the conversation."
+                        : "Audio stays in your browser. No microphone or phone number is used."}
                 </p>
               </aside>
             </div>
@@ -441,40 +545,70 @@ export default function MentalHealthDemo() {
               </div>
             )}
 
-            {result && (
-              <footer className={styles.callOutcome} data-route={result.route}>
-                <div>
-                  <span>Call outcome</span>
-                  <strong>{outcomeCopy[result.route].label}</strong>
-                  <p>{outcomeCopy[result.route].body}</p>
-                </div>
-                {result.route === "routine" && (
-                  <div
-                    className={styles.appointmentSlots}
-                    aria-label="Demo times"
-                  >
-                    <span>Tue 2:30</span>
-                    <span>Tue 4:00</span>
+            {result &&
+              (result.route !== "routine" || callState === "complete") && (
+                <footer
+                  className={styles.callOutcome}
+                  data-route={result.route}
+                >
+                  <div>
+                    <span>Call outcome</span>
+                    <strong>{outcomeCopy[result.route].label}</strong>
+                    <p>{outcomeCopy[result.route].body}</p>
                   </div>
-                )}
-                {result.route !== "urgent" && (
-                  <a
-                    href="mailto:hello@dharmicdata.org?subject=Build%20an%20AI%20voice%20receptionist"
-                    onClick={() =>
-                      plausible("voice_cta_selected", {
-                        props: {
-                          route: result.route,
-                          policy: result.assessment.policyVersion,
-                        },
-                      })
-                    }
-                  >
-                    Build this for my team →
-                  </a>
-                )}
-              </footer>
-            )}
+                  {result.route === "routine" && bookingChoice && (
+                    <div
+                      className={styles.appointmentSlots}
+                      aria-label="Demo selection"
+                    >
+                      <span>{bookingChoice.label}</span>
+                      <small>Proposed only</small>
+                    </div>
+                  )}
+                  {result.route !== "urgent" && (
+                    <a
+                      href="mailto:hello@dharmicdata.org?subject=Build%20an%20AI%20voice%20receptionist"
+                      onClick={() =>
+                        plausible("voice_cta_selected", {
+                          props: {
+                            route: result.route,
+                            policy: result.assessment.policyVersion,
+                          },
+                        })
+                      }
+                    >
+                      Build this for my team →
+                    </a>
+                  )}
+                </footer>
+              )}
           </section>
+
+          <details className={styles.safetyExamples}>
+            <summary>See how safety changes the conversation</summary>
+            <p>
+              These synthetic examples show when the normal front-desk flow
+              pauses. They are secondary to the scheduling demonstration.
+            </p>
+            <div className={styles.scenarioPicker} aria-label="Safety examples">
+              {voiceScenarios.slice(1).map((scenario) => (
+                <button
+                  type="button"
+                  key={scenario.id}
+                  aria-pressed={scenario.id === scenarioId}
+                  data-accent={scenario.accent}
+                  disabled={callInProgress}
+                  onClick={() => {
+                    resetCall();
+                    setScenarioId(scenario.id);
+                  }}
+                >
+                  <span>{scenario.eyebrow}</span>
+                  <strong>{scenario.title}</strong>
+                </button>
+              ))}
+            </div>
+          </details>
         </section>
 
         <section className={styles.progressive} aria-labelledby="details-title">
@@ -488,24 +622,25 @@ export default function MentalHealthDemo() {
               <summary>How did you build the voice experience?</summary>
               <div className={styles.detailBody}>
                 <p>
-                  The browser demo makes the call lifecycle tangible today. In
-                  the phone architecture, Netlify remains the web and control
-                  plane while a bounded DigitalOcean worker holds the real-time
-                  Twilio media connection.
+                  Netlify serves the complete demo. React owns the reviewed
+                  conversation state, the existing safety route approves each
+                  receptionist response, and your browser speaks it. Deliberate
+                  on-screen replies make the webinar reliable without asking for
+                  microphone access.
                 </p>
                 <div
                   className={styles.architecture}
                   aria-label="Voice architecture"
                 >
-                  <span>Caller</span>
+                  <span>Your choice</span>
                   <i>→</i>
-                  <span>Twilio</span>
+                  <span>React state</span>
                   <i>→</i>
-                  <strong>Voice worker</strong>
+                  <strong>Safety route</strong>
                   <i>→</i>
                   <span>Together</span>
                   <i>→</i>
-                  <span>Caller</span>
+                  <span>Browser voice</span>
                 </div>
               </div>
             </details>
@@ -583,8 +718,8 @@ export default function MentalHealthDemo() {
                   </span>
                 </div>
                 <p>
-                  A 12-case multi-turn voice slice kept the same route across
-                  33 of 36 punctuation, homophone, and deletion variants; two
+                  A 12-case multi-turn voice slice kept the same route across 33
+                  of 36 punctuation, homophone, and deletion variants; two
                   scenario IDs changed route. Synthetic perturbations still do
                   not replace real accent, noise, codec, and streaming tests.
                 </p>
