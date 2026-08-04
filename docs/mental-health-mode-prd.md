@@ -1,267 +1,178 @@
-# Mental health mode: experimental product requirements
+# Voice receptionist safety demo: product requirements
 
-Status: implementation contract for a non-clinical, masterclass-ready experiment
-
-This document replaces the pasted talk notes as the product contract. It does
-not approve a clinical product. It translates the useful engineering pattern
-from the Sonder talk—checks around a generative model plus a measurable review
-loop—into an inspectable Dharmic Data Tutor experiment.
+Status: accepted contract for a non-clinical masterclass demonstration
 
 ## Outcome
 
-A visitor can open a separate **Mental health mode · experiment**, understand
-its limits, try a synthetic scenario, and see how a safety harness checks the
-input, chooses a route, prepares a response, and checks the output. The demo
-should teach a transferable “sandwich the model” pattern and end with a clear,
-content-free invitation to discuss building an AI voice receptionist.
+A visitor should understand the practical value before seeing the machinery:
+an AI voice receptionist can listen, choose a useful next step, speak, stop when
+interrupted, and change course when a caller's language requires more care.
 
-The experiment is successful when a masterclass viewer can explain:
+The voice interaction owns at least 80% of the first-screen attention. Safety
+architecture, evaluation evidence, privacy notes, and infrastructure are
+progressively disclosed as FAQ and **How we built this** material. The page must
+feel like a product demo first and a technical teardown second.
 
-1. why application code, not the language model, owns routing;
-2. why high-risk states use reviewed deterministic content;
-3. why generated output is approved before it is revealed;
-4. how traces become an evaluation set and release gate; and
-5. which parts of the web control plane transfer to a voice channel.
+The masterclass succeeds when a viewer can:
 
-## Positioning and scope
+1. start a representative call without onboarding;
+2. hear and see the receptionist handle a normal scheduling request;
+3. interrupt spoken output and understand that stale audio was cancelled;
+4. compare routine, ambiguous, and urgent call outcomes; and
+5. inspect the transferable implementation only when they ask for it.
 
-Use the product name **Reflection mode · experiment** in the interface. The
-navigation may describe it as the mental-health safety-harness demo, but the
-experience must never call itself a therapist, diagnose, recommend treatment,
-promise monitoring, or claim clinical accuracy.
+## Positioning and boundaries
 
-Initial scope:
+The visible product name is **AI Voice Receptionist · browser demo**. It may
+demonstrate a behavioral-health-practice call, but it is not therapy, crisis
+monitoring, diagnosis, treatment, dispatch, or a finished clinical product.
 
-- adult, US-oriented demonstration;
-- synthetic scenarios by default, plus an explicitly acknowledged live lab;
-- reflection and grounding language, not clinical advice;
-- an inspectable three-route policy and four-stage harness;
-- no sign-in, persistence, citations, microphone, outbound messages, or alerts;
-- no claim that a human is watching or will intervene.
+Initial public scope:
 
-Out of scope until separate approval:
+- synthetic adult, US-oriented calls;
+- browser speech synthesis, transcript, call state, interruption, and outcomes;
+- reviewed booking, clarification, and urgent response copy;
+- an optional acknowledged live Together text guardrail;
+- no microphone, phone number, sign-in, persistence, outbound message, or alert;
+- no claim that a human is listening or will intervene.
 
-- unrestricted public mental-health conversations;
-- minors, diagnosis, treatment, or medication guidance;
-- automatic calls, texts, emergency dispatch, or clinician escalation;
-- storing raw messages, clinical records, or inferred diagnoses;
-- voice streaming or telephony in Netlify Functions;
-- marketing claims about sensitivity, specificity, or clinical efficacy.
+The browser simulation must never be represented as live telephony. A real
+phone adapter remains a separate runtime and acceptance slice.
 
-## Jobs to be done
+## Experience contract
 
-| ID  | Visitor need                                                | Product response                                                                                           | Evidence of success                                                                   |
-| --- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| MH1 | I want to understand the pattern quickly.                   | A calm introduction explains the four harness stages and the experiment boundary.                          | A visitor can enter a scenario without reading documentation.                         |
-| MH2 | I want to see routing, not trust a black box.               | Each run shows input check, route, response policy, and output check with plain-language reasons.          | The selected route and fallback are visible without exposing hidden chain-of-thought. |
-| MH3 | I want to compare ordinary, ambiguous, and urgent language. | Three reviewed synthetic scenarios exercise routine, elevated, and urgent routes.                          | Every scenario reaches its expected deterministic UI state.                           |
-| MH4 | I want failure to be safe and legible.                      | Invalid or unavailable classification abstains into a conservative reviewed state.                         | Provider and parsing failures never reveal unchecked generated text.                  |
-| MH5 | I want to know how this transfers to voice.                 | A short architecture note and CTA distinguish the reusable control plane from a long-running media worker. | The CTA records only the action, never scenario text.                                 |
-| MH6 | I want control and an easy exit.                            | Persistent experiment label, Leave mode control, and non-blocking resource access remain available.        | Keyboard and mobile users can always leave or open resources.                         |
+### Primary surface: the call
 
-## Experience flow
+The page opens directly on the call experience. It contains:
 
-### 1. Entry
+- one concise outcome-oriented headline;
+- three compact synthetic caller choices;
+- a dominant receptionist console with call state and transcript;
+- one unmistakable **Start demo call** control;
+- a visible **Interrupt voice** control while speech is queued;
+- a call outcome that explains what useful work was completed; and
+- a commercial invitation only after non-urgent outcomes.
 
-The normal tutor remains the primary product. A small, explicit experimental
-entry in the header opens `/mental-health`. The route is isolated from the
-lesson state machine and coaching database.
+The call state machine is:
 
-### 2. Scope and consent
-
-The first screen says that this is an educational prototype using synthetic
-examples, not therapy or crisis monitoring. It names the US-only limitation,
-states that no conversation is saved, and provides **Try the demo** and
-**Return to Tutor** actions.
-
-### 3. Scenario lab
-
-The visitor chooses one of three hand-authored examples:
-
-- **Routine stress:** ordinary reflection; expected route `routine`.
-- **Ambiguous distress:** language that warrants acknowledgement and one
-  clarifying safety question; expected route `elevated`.
-- **Immediate danger:** explicit imminent-risk language; expected route
-  `urgent`.
-
-The examples are visibly labelled synthetic. A separate **Live lab** lets the
-presenter enter free text after acknowledging that it is an engineering demo,
-not support or crisis monitoring. Live input is sent transiently to Together,
-is never saved, and always has a deterministic timeout/error fallback. The
-guided scenario path remains available when credentials or the provider fail.
-
-### 4. Harness trace
-
-The page advances through four bounded stages:
-
-1. **Input check** — policy result, confidence, and abstention state.
-2. **Route** — application-owned `routine`, `elevated`, or `urgent` decision.
-3. **Response** — the permitted response strategy for that route.
-4. **Output check** — approval or replacement before any response appears.
-
-The trace reports policy facts and timing. It does not expose hidden reasoning
-or model chain-of-thought.
-
-### 5. Result states
-
-`routine` shows a short reviewed reflection prompt. `elevated` acknowledges the
-language, asks one direct safety clarification, keeps resources available, and
-lets the visitor mark the route as a false positive. `urgent` stops generative
-coaching and shows reviewed US resources: call or text 988, call 911 for
-immediate danger, contact a trusted person, or move to a safer place. The page
-remains usable; it does not lock, terminate, call, text, or imply human presence.
-
-### 6. Transfer to voice
-
-After a completed synthetic run, an architectural card explains that the same
-typed turn contract and routing policy can sit between speech recognition and
-text-to-speech. The CTA is **Build a voice receptionist with this pattern**.
-
-## Safety contract
-
-The application owns the final route. A model may return a schema-constrained
-assessment, but it cannot invoke arbitrary tools or select outbound actions.
-The assessment contract contains:
-
-```ts
-type SafetyAssessment = {
-  policyVersion: string;
-  route: "routine" | "elevated" | "urgent";
-  confidence: number;
-  abstain: boolean;
-  signals: string[];
-};
+```text
+idle → connecting → listening → deciding → speaking → complete
+                                           └→ interrupted
 ```
 
-Invalid JSON, an unknown enum, a timeout, low confidence, or provider failure
-must produce `abstain: true`. The server then chooses a reviewed conservative
-state. The UI never derives the route from model-authored prose.
+Interruption cancels browser speech immediately. The future phone adapter must
+also cancel the provider TTS context and clear Twilio's queued media before the
+next turn.
 
-The three guided scenario responses are reviewed, deterministic copy. The live
-lab may generate a `routine` response and a narrowly bounded `elevated`
-response so the presenter can demonstrate both guards. Generated text must be
-buffered, evaluated, and then revealed; asynchronous review after streaming is
-observability, not a guardrail. An `urgent` route, abstention, classifier
-failure, or output rejection always uses reviewed deterministic copy.
+### Progressive disclosure
 
-## Data and observability
+Everything that explains implementation follows the demo in native, keyboard
+operable disclosures:
 
-The public scenario lab is anonymous and ephemeral:
+1. How did you build the voice experience?
+2. What happens when a caller says something risky?
+3. Is this therapy or a finished clinical product?
+4. What did you evaluate?
+5. Inspect the live Together guardrail.
 
-- do not write to Netlify Database or browser storage;
-- do not send scenario text to Plausible, Helicone, logs, or the CTA;
-- do not use Exa or live web results for crisis resources;
-- log only content-free fields such as scenario ID, policy version, route,
-  model alias, latency bucket, failure class, and synthetic flag;
-- keep provider keys and routing policy server-side;
-- maintain a feature kill switch independent of deployment.
+The four-stage safety trace appears inside the risk disclosure after a call. It
+must not compete with the transcript on the primary surface.
 
-Before any real text is accepted, approve consent copy, retention duration,
-deletion behavior, trace access, incident ownership, and applicable state-law
-requirements. HIPAA applicability is not assumed merely because content is
-health-related; consumer-health privacy and unfair-practices obligations can
-still apply.
+### Route behavior
+
+| Route      | Visible behavior                                                                                | Forbidden behavior                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `routine`  | Offer a bounded useful next step such as two demo appointment times.                            | Invent a confirmed appointment or durable record.                          |
+| `elevated` | Pause scheduling, acknowledge distress, ask one direct safety clarification, keep US 988 close. | Continue coaching as if risk were resolved.                                |
+| `urgent`   | Stop generative flow and return reviewed 988/911/trusted-person/safer-place options.            | Commercial CTA, automatic call/text/dispatch, hangup, or monitoring claim. |
+
+Application code owns the route. Invalid JSON, unknown enums, timeout, provider
+failure, abstention, or confidence below 0.72 cannot silently become `routine`.
+Unchecked generated text never enters the UI or audio queue.
 
 ## Architecture
 
-### Web experiment
+### Demonstration now
 
-- Next.js route `/mental-health` renders the isolated scenario lab.
-- A typed policy module owns scenario definitions, route permissions, reviewed
-  fallback copy, and the demo trace contract.
-- `/api/mental-health/respond` runs input assessment, application routing,
-  bounded response generation when permitted, and output assessment in one
-  non-streaming request. Together responses use structured JSON and Zod at the
-  network boundary.
-- Netlify hosts the web UI and short request/response control plane.
-- A background function may run idempotent post-turn evaluation batches, but
-  never serves interactive voice media.
+- Next.js and Netlify render the page and short request/response control plane.
+- `/api/mental-health/respond` owns structured input assessment, application
+  routing, bounded generation, output review, and reviewed replacement.
+- Guided calls use deterministic copy so the demo survives provider failure.
+- Browser speech synthesis makes speaking and cancellation demonstrable without
+  collecting microphone or phone data.
 
-Together model IDs are environment aliases, not hardcoded product decisions.
-The selected model must pass an availability, schema-validity, latency, cost,
-and safety fixture gate before the alias changes.
-
-### Voice adapter
-
-Netlify remains the web and control plane. The real-time voice media loop runs
-in LiveKit Cloud Agents or a long-lived DigitalOcean worker:
+### Phone adapter
 
 ```text
-Twilio/SIP → LiveKit or WebSocket worker → speech-to-text
-           → shared typed safety turn contract → Together
-           → approved response → text-to-speech → caller
+Caller → Twilio Media Streams → bounded DigitalOcean voice worker
+       → Together realtime STT → typed safety turn contract
+       → approved response → Together realtime TTS → Twilio → Caller
 ```
 
-The preferred production investigation is Twilio/SIP + LiveKit Cloud Agents +
-Deepgram Flux + Together + a cancellable TTS provider. A DigitalOcean
-WebSocket worker is the fallback for a more inspectable masterclass build.
-Netlify Functions are unsuitable for the long-lived bidirectional media loop.
+Netlify stays the web/control plane. The already-paid DigitalOcean Droplet is a
+candidate long-running media plane only after Issue #58's snapshot, ingress,
+firewall, isolation, monitoring, and rollback gates pass. It holds no durable
+call data and runs no local model.
 
-## Evaluation and release gates
+## Evaluation and governance
 
-Engineering may build the harness and synthetic fixtures, but a clinician and
-lived-experience reviewer must own final labels before unrestricted use.
+Issue #60 is the current-system evidence gate. The benchmark:
 
-The checked-in corpus must cover:
+- reads the external SonderMind corpus from a manually supplied pinned checkout;
+- verifies commit-independent SHA-256 file hashes and observed counts;
+- never vendors or redistributes the corpus while its license is unresolved;
+- compares input detection and output approval across all 255/100 cases;
+- reports confusion matrices, category/issue slices, abstention, errors,
+  p50/p95 latency, tokens, model alias, policy version, and limitations;
+- writes only aggregate metrics and scenario identifiers, never raw case text.
 
-- explicit immediate danger;
-- ambiguous and coded distress;
-- benign stress and figurative language;
-- false-positive recovery;
-- multi-turn escalation;
-- adversarial prompt injection;
-- resource hallucination and jurisdiction mismatch;
-- overclaiming, diagnosis, or treatment language;
-- classifier timeout, invalid schema, and provider failure;
-- output-guard rejection and safe replacement.
+External labels calibrate the guard; they do not define our route or prove
+clinical safety. A separately reviewed route overlay, held-out cases, and
+voice transcript perturbations remain required before broader release.
 
-Prototype gate:
+Issue #55 owns versioned thresholds, reviewer annotation, incident history,
+kill-switch drills, and release evidence. Issue #57 owns phone lifecycle,
+partial/final transcripts, barge-in, provider loss, transfer, reconnect, and
+audio-queue acceptance. Issue #58 owns the reversible host baseline.
 
-- all synthetic scenarios reach the expected deterministic state;
-- live Together requests return schema-valid assessments or the reviewed
-  abstention fallback;
-- no unchecked model output is rendered;
-- no raw scenario content is persisted or emitted to analytics;
-- every control is keyboard reachable with a visible focus state;
-- 390 px, 830 px, and 1353 px layouts pass without horizontal page overflow;
-- reduced motion removes nonessential transitions;
-- lint, unit, build, Playwright, and Netlify deploy-preview validation pass.
+## Data contract
 
-Using this lab as a real support product—as opposed to a supervised engineering
-demo—additionally requires approved policy labels, privacy and incident
-procedures, a current resource manifest, model qualification results, and an
-explicit product-owner decision on residual risk.
+- no raw public-demo text in Plausible, Helicone, application logs, browser
+  storage, Netlify Database, CI artifacts, or benchmark reports;
+- live text is sent transiently to Together only after explicit acknowledgement;
+- browser-demo analytics contain scenario ID, route, policy, provider, and
+  interaction actions—not transcript content;
+- no audio is recorded or uploaded by the browser demo;
+- bounded in-memory phone history must be erased at call end.
 
-## Analytics and masterclass narrative
+## Acceptance gates
 
-Allowed events are `experiment_opened`, `scenario_selected`,
-`harness_completed`, `voice_cta_selected`, and `experiment_exited`. Properties
-are limited to scenario ID, expected/actual route, policy version, synthetic
-flag, failure class, and coarse latency. Never attach user text.
+- the voice demo is the dominant first-screen surface at 390, 830, and 1353 px;
+- normal, elevated, and urgent synthetic calls reach their expected outcomes;
+- urgent output contains reviewed resources and no commercial CTA;
+- barge-in cancels current audio and shows a legible recovery state;
+- the safety trace is collapsed by default and keyboard reachable;
+- reduced-motion mode disables nonessential movement;
+- no page-level horizontal overflow;
+- lint, unit, build, Playwright, Netlify validation, preview, and production
+  smoke checks pass;
+- the #60 report contains no raw corpus text.
 
-The teaching sequence is: start with the failure mode, show the four-stage
-loop, demonstrate all three routes, reveal the evaluation gate, then move the
-same contract into the voice architecture. The CTA must not interrupt an
-urgent result state.
+## External decisions that remain gated
 
-## Decisions that remain gated
-
-1. Name the clinical and lived-experience reviewers.
-2. Approve age and jurisdiction expansion beyond adult US demonstrations.
-3. Approve real-text consent, retention, tracing, and deletion policy.
-4. Approve incident ownership, on-call path, and kill-switch authority.
-5. Qualify the Together classifier and coach model aliases against the corpus.
-6. Choose LiveKit Cloud Agents or a DigitalOcean worker for the voice phase.
-7. Choose STT, TTS, and telephony providers after interruption and latency tests.
+1. License or written permission for CI use or redistribution of the external corpus.
+2. Named clinical and lived-experience reviewers for route overlays and claims.
+3. Any expansion beyond a synthetic adult US engineering demo.
+4. Privacy, retention, consent, incident, and kill-switch ownership for real calls.
+5. Destructive or availability-affecting changes to the shared Droplet.
+6. Twilio phone number, DNS, quotas, and production voice credentials.
 
 ## Primary references
 
-- [SAMHSA 988 frequently asked questions](https://www.samhsa.gov/mental-health/988/faqs)
-- [SAMHSA 988 quality and services plan](https://www.samhsa.gov/sites/default/files/saving-lives-american-988-quality-service-plan.pdf)
-- [NIST AI 600-1: Generative AI Profile](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf)
-- [WHO ethics and governance of AI for health](https://www.who.int/publications/i/item/9789240029200)
+- [SonderMind guardrail evals](https://github.com/SonderMindOrg/sonder-guardrail-evals)
 - [Together structured outputs](https://docs.together.ai/docs/inference/chat/structured-outputs)
-- [Together serverless models](https://docs.together.ai/docs/serverless/models)
-- [Netlify Functions configuration and limits](https://docs.netlify.com/build/functions/configuration/)
-- [LiveKit Agents](https://docs.livekit.io/agents/)
-- [Twilio ConversationRelay](https://www.twilio.com/docs/voice/twiml/connect/conversationrelay)
+- [Together realtime transcription](https://docs.together.ai/reference/audio-transcriptions-realtime)
+- [Together realtime speech](https://docs.together.ai/reference/audio-speech-websocket)
+- [Twilio bidirectional Media Streams](https://www.twilio.com/docs/voice/media-streams/websocket-messages)
+- [SAMHSA 988 FAQ](https://www.samhsa.gov/mental-health/988/faqs)
+- [NIST AI 600-1](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf)

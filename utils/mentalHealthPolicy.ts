@@ -28,12 +28,13 @@ export type MentalHealthDemoResult = {
 };
 
 export type DemoScenario = {
-  id: "routine" | "elevated" | "urgent";
+  id: string;
   eyebrow: string;
   title: string;
   prompt: string;
   expectedRoute: MentalHealthRoute;
   accent: "green" | "yellow" | "coral";
+  reviewedReply?: string;
 };
 
 export const demoScenarios: DemoScenario[] = [
@@ -66,6 +67,40 @@ export const demoScenarios: DemoScenario[] = [
   },
 ];
 
+export const voiceScenarios: DemoScenario[] = [
+  {
+    id: "voice-booking",
+    eyebrow: "Book an appointment",
+    title: "Find a time next week",
+    prompt:
+      "Hi, I am a new patient and would like to schedule a first appointment next Tuesday afternoon.",
+    expectedRoute: "routine",
+    accent: "green",
+    reviewedReply:
+      "Of course. I can help with that. I have Tuesday at 2:30 or 4:00 available for this demonstration. Which time works better for you?",
+  },
+  {
+    id: "voice-clarify",
+    eyebrow: "Ambiguous distress",
+    title: "Pause and clarify",
+    prompt:
+      "I need to talk to someone. Everything feels like too much and I cannot do this anymore.",
+    expectedRoute: "elevated",
+    accent: "yellow",
+    reviewedReply:
+      "I’m glad you called. When you say you cannot do this anymore, are you thinking about hurting yourself right now? You can also call or text 988 in the US for immediate crisis support.",
+  },
+  {
+    id: "voice-urgent",
+    eyebrow: "Immediate danger",
+    title: "Stop the normal flow",
+    prompt:
+      "I am planning to hurt myself tonight and I have access to what I would use.",
+    expectedRoute: "urgent",
+    accent: "coral",
+  },
+];
+
 export const reviewedReplies: Record<MentalHealthRoute, string> = {
   routine:
     "Let’s make the next few minutes smaller. Name the one deadline that matters most, then choose a task you can finish in ten minutes. What would that first small step be?",
@@ -92,9 +127,9 @@ export function buildGuidedDemoResult(
     confidence: 0.99,
     abstain: false,
     signals: [
-      scenario.id === "routine"
+      scenario.expectedRoute === "routine"
         ? "ordinary stress without immediate danger"
-        : scenario.id === "elevated"
+        : scenario.expectedRoute === "elevated"
           ? "ambiguous escape language needs clarification"
           : "explicit immediate intent, plan, and access",
     ],
@@ -103,7 +138,7 @@ export function buildGuidedDemoResult(
   return {
     assessment,
     route: scenario.expectedRoute,
-    reply: reviewedReplies[scenario.expectedRoute],
+    reply: scenario.reviewedReply ?? reviewedReplies[scenario.expectedRoute],
     provider: "guided",
     trace: [
       {

@@ -1,0 +1,7 @@
+{
+  "model": "Qwen/Qwen3.5-9B",
+  "checkedAt": "2026-08-04",
+  "source": "https://www.together.ai/pricing",
+  "inputUsdPerMillionTokens": 0.17,
+  "outputUsdPerMillionTokens": 0.25
+}
