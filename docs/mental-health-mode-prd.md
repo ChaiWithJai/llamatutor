@@ -33,7 +33,7 @@ promise monitoring, or claim clinical accuracy.
 Initial scope:
 
 - adult, US-oriented demonstration;
-- synthetic scenarios only in the public preview;
+- synthetic scenarios by default, plus an explicitly acknowledged live lab;
 - reflection and grounding language, not clinical advice;
 - an inspectable three-route policy and four-stage harness;
 - no sign-in, persistence, citations, microphone, outbound messages, or alerts;
@@ -50,14 +50,14 @@ Out of scope until separate approval:
 
 ## Jobs to be done
 
-| ID | Visitor need | Product response | Evidence of success |
-| --- | --- | --- | --- |
-| MH1 | I want to understand the pattern quickly. | A calm introduction explains the four harness stages and the experiment boundary. | A visitor can enter a scenario without reading documentation. |
-| MH2 | I want to see routing, not trust a black box. | Each run shows input check, route, response policy, and output check with plain-language reasons. | The selected route and fallback are visible without exposing hidden chain-of-thought. |
-| MH3 | I want to compare ordinary, ambiguous, and urgent language. | Three reviewed synthetic scenarios exercise routine, elevated, and urgent routes. | Every scenario reaches its expected deterministic UI state. |
-| MH4 | I want failure to be safe and legible. | Invalid or unavailable classification abstains into a conservative reviewed state. | Provider and parsing failures never reveal unchecked generated text. |
-| MH5 | I want to know how this transfers to voice. | A short architecture note and CTA distinguish the reusable control plane from a long-running media worker. | The CTA records only the action, never scenario text. |
-| MH6 | I want control and an easy exit. | Persistent experiment label, Leave mode control, and non-blocking resource access remain available. | Keyboard and mobile users can always leave or open resources. |
+| ID  | Visitor need                                                | Product response                                                                                           | Evidence of success                                                                   |
+| --- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| MH1 | I want to understand the pattern quickly.                   | A calm introduction explains the four harness stages and the experiment boundary.                          | A visitor can enter a scenario without reading documentation.                         |
+| MH2 | I want to see routing, not trust a black box.               | Each run shows input check, route, response policy, and output check with plain-language reasons.          | The selected route and fallback are visible without exposing hidden chain-of-thought. |
+| MH3 | I want to compare ordinary, ambiguous, and urgent language. | Three reviewed synthetic scenarios exercise routine, elevated, and urgent routes.                          | Every scenario reaches its expected deterministic UI state.                           |
+| MH4 | I want failure to be safe and legible.                      | Invalid or unavailable classification abstains into a conservative reviewed state.                         | Provider and parsing failures never reveal unchecked generated text.                  |
+| MH5 | I want to know how this transfers to voice.                 | A short architecture note and CTA distinguish the reusable control plane from a long-running media worker. | The CTA records only the action, never scenario text.                                 |
+| MH6 | I want control and an easy exit.                            | Persistent experiment label, Leave mode control, and non-blocking resource access remain available.        | Keyboard and mobile users can always leave or open resources.                         |
 
 ## Experience flow
 
@@ -84,8 +84,11 @@ The visitor chooses one of three hand-authored examples:
 - **Immediate danger:** explicit imminent-risk language; expected route
   `urgent`.
 
-The examples are visibly labelled synthetic. Public free text stays disabled
-until the privacy and clinical gates are approved.
+The examples are visibly labelled synthetic. A separate **Live lab** lets the
+presenter enter free text after acknowledging that it is an engineering demo,
+not support or crisis monitoring. Live input is sent transiently to Together,
+is never saved, and always has a deterministic timeout/error fallback. The
+guided scenario path remains available when credentials or the provider fail.
 
 ### 4. Harness trace
 
@@ -134,12 +137,12 @@ Invalid JSON, an unknown enum, a timeout, low confidence, or provider failure
 must produce `abstain: true`. The server then chooses a reviewed conservative
 state. The UI never derives the route from model-authored prose.
 
-For the first public experiment all three scenario responses are reviewed,
-deterministic copy. A later free-text cohort may allow generated `routine`
-responses only after the output judge, privacy policy, evaluation corpus, and
-clinical review gate all pass. Generated text must be buffered, evaluated, and
-then revealed; asynchronous review after streaming is observability, not a
-guardrail.
+The three guided scenario responses are reviewed, deterministic copy. The live
+lab may generate a `routine` response and a narrowly bounded `elevated`
+response so the presenter can demonstrate both guards. Generated text must be
+buffered, evaluated, and then revealed; asynchronous review after streaming is
+observability, not a guardrail. An `urgent` route, abstention, classifier
+failure, or output rejection always uses reviewed deterministic copy.
 
 ## Data and observability
 
@@ -164,9 +167,12 @@ still apply.
 ### Web experiment
 
 - Next.js route `/mental-health` renders the isolated scenario lab.
-- A typed policy module owns scenario definitions and deterministic route copy.
-- `/api/mental-health/classify` is a later, feature-flagged Together adapter
-  using structured JSON and Zod at the network boundary.
+- A typed policy module owns scenario definitions, route permissions, reviewed
+  fallback copy, and the demo trace contract.
+- `/api/mental-health/respond` runs input assessment, application routing,
+  bounded response generation when permitted, and output assessment in one
+  non-streaming request. Together responses use structured JSON and Zod at the
+  network boundary.
 - Netlify hosts the web UI and short request/response control plane.
 - A background function may run idempotent post-turn evaluation batches, but
   never serves interactive voice media.
@@ -212,6 +218,8 @@ The checked-in corpus must cover:
 Prototype gate:
 
 - all synthetic scenarios reach the expected deterministic state;
+- live Together requests return schema-valid assessments or the reviewed
+  abstention fallback;
 - no unchecked model output is rendered;
 - no raw scenario content is persisted or emitted to analytics;
 - every control is keyboard reachable with a visible focus state;
@@ -219,9 +227,10 @@ Prototype gate:
 - reduced motion removes nonessential transitions;
 - lint, unit, build, Playwright, and Netlify deploy-preview validation pass.
 
-Public free-text gate additionally requires approved policy labels, privacy and
-incident procedures, a current resource manifest, model qualification results,
-and an explicit product-owner decision on residual risk.
+Using this lab as a real support product—as opposed to a supervised engineering
+demo—additionally requires approved policy labels, privacy and incident
+procedures, a current resource manifest, model qualification results, and an
+explicit product-owner decision on residual risk.
 
 ## Analytics and masterclass narrative
 
@@ -256,4 +265,3 @@ urgent result state.
 - [Netlify Functions configuration and limits](https://docs.netlify.com/build/functions/configuration/)
 - [LiveKit Agents](https://docs.livekit.io/agents/)
 - [Twilio ConversationRelay](https://www.twilio.com/docs/voice/twiml/connect/conversationrelay)
-

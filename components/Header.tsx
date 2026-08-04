@@ -36,6 +36,11 @@ const Header = ({
         </Link>
       </div>
       <nav className="header-links" aria-label="Product navigation">
+        {!sessionActive && (
+          <Link className="header-experiment" href="/mental-health">
+            Reflection lab
+          </Link>
+        )}
         {!sessionActive && <a href="#how-it-works">How it works</a>}
         <a
           href="https://github.com/ChaiWithJai/llamatutor"

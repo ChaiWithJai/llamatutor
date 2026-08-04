@@ -126,6 +126,15 @@ a {
   padding: 0.7rem 1rem;
 }
 
+.header-links .header-experiment {
+  border: 1px solid var(--color-border);
+  border-radius: var(--dd-radius-pill);
+  background: var(--dd-color-yellow-500);
+  padding: 0.45rem 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
 .header-account {
   border: 0;
   background: transparent;

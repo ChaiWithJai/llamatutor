@@ -22,10 +22,12 @@ not require presenting an unvalidated clinical product.
 Create an isolated `/mental-health` experiment, labelled in-product as
 **Reflection mode · experiment**.
 
-The first public slice uses reviewed synthetic scenarios and deterministic
-responses. A typed policy module owns the three routes and the browser renders
-an inspectable four-stage trace. It does not call Together, Exa, Netlify
-Identity, Netlify Database, Helicone, or any voice provider.
+The first public slice defaults to reviewed synthetic scenarios and
+deterministic responses. A separately acknowledged live lab calls Together to
+demonstrate schema-constrained input assessment, bounded generation, and output
+assessment. A typed policy module owns the three routes and the browser renders
+an inspectable four-stage trace. The route never calls Exa, Netlify Identity,
+Netlify Database, Helicone, or any voice provider.
 
 Future model-backed work must preserve the same contract:
 
@@ -61,23 +63,29 @@ Rejected. A judge cannot retract harmful text already rendered or spoken.
 Rejected. Routing and side effects are policy decisions owned by reviewed
 application code.
 
-### Launch public free text immediately
+### Present unrestricted free text as a support product
 
-Rejected for the first slice. Clinical labels, jurisdiction behavior, privacy,
-incident ownership, and model qualification are unresolved. Synthetic examples
-provide a faithful, safe, and repeatable teaching experience while those gates
-are completed.
+Rejected. Clinical labels, jurisdiction behavior, privacy, incident ownership,
+and model qualification are unresolved. The bounded live lab is explicitly an
+engineering demonstration, remains non-persistent, and always retains the
+synthetic path and reviewed fallback.
 
 ## Consequences
 
-The experiment is honest, repeatable, and testable without provider credentials.
-It demonstrates the architecture rather than claiming clinical efficacy. The
+separate route adds a small amount of duplicated shell UI, but prevents the
+existing learning database and streaming path from becoming accidental
+dependencies.
+The experiment is honest and repeatable: guided scenarios work without provider
+credentials, while the live lab demonstrates the real Together boundary. It
+demonstrates the architecture rather than claiming clinical efficacy. The
+separate route adds a small amount of duplicated shell UI, but prevents the
+existing learning database and streaming path from becoming accidental
+dependencies.
 separate route adds a small amount of duplicated shell UI, but prevents the
 existing learning database and streaming path from becoming accidental
 dependencies.
 
-The first slice cannot validate live model classification quality. That work is
-tracked separately and cannot graduate without the corpus and reviewers defined
-in the PRD. Voice delivery is also a separate adapter, not a hidden extension of
-the Netlify web runtime.
-
+The live lab demonstrates mechanics but cannot validate clinical classification
+quality. It cannot graduate into a support product without the corpus and
+reviewers defined in the PRD. Voice delivery is also a separate adapter, not a
+hidden extension of the Netlify web runtime.
