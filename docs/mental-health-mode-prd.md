@@ -16,7 +16,7 @@ feel like a product demo first and a technical teardown second.
 The masterclass succeeds when a viewer can:
 
 1. start a representative call without onboarding;
-2. complete a multi-turn scheduling request with one meaningful choice;
+2. hear a complete multi-turn scheduling call from greeting to goodbye;
 3. interrupt and resume spoken output without losing the conversation;
 4. optionally inspect ambiguous and urgent call outcomes; and
 5. inspect the transferable implementation only when they ask for it.
@@ -30,8 +30,8 @@ monitoring, diagnosis, treatment, dispatch, or a finished clinical product.
 Initial public scope:
 
 - synthetic adult, US-oriented calls;
-- browser speech synthesis, transcript, call state, interruption, and outcomes;
-- deliberate on-screen caller choices for a reliable multi-turn webinar;
+- natural hosted text-to-speech, transcript, call state, interruption, and outcomes;
+- reviewed, alternating caller and receptionist turns for a reliable webinar;
 - reviewed booking, clarification, and urgent response copy;
 - an optional acknowledged live Together text guardrail;
 - no microphone, phone number, sign-in, persistence, outbound message, or alert;
@@ -46,26 +46,29 @@ numbers and a real-time media runtime are explicitly outside this demo scope.
 
 The page opens directly on the call experience. It contains:
 
-- one concise outcome-oriented headline;
-- one reassuring scheduling example, with risk examples behind disclosure;
-- a dominant receptionist console with call state and transcript;
-- one unmistakable **Start demo call** control;
-- a visible **Interrupt voice** control while speech is queued;
+- one compact experiment header;
+- three synthetic caller cards, with routine scheduling selected by default;
+- a dominant dark call console with line state, waveform, timer, and transcript;
+- one unmistakable **Start the call** control;
+- visible pause, resume, and end controls during the call;
 - a call outcome that explains what useful work was completed; and
 - a commercial invitation only after non-urgent outcomes.
 
-The routine call state machine is:
+The routine call is a complete, application-owned script of at least eight
+alternating turns. Nothing is pre-rendered in the transcript: the first turn is
+Maya's audible greeting, and each turn appears only when its audio begins. The
+state machine is:
 
 ```text
-idle → connecting → listening → deciding → speaking → visitor choice
-                                           └→ interrupted      |
-                                                ↑               v
-                                                └── resume ← deciding → speaking → complete
+standby → connecting → speaking ↔ next reviewed turn → complete
+                           └→ paused → resume
+                           └→ ended
 ```
 
-Interruption cancels browser speech immediately while preserving the current
-approved turn. Resume repeats only that turn and returns to the correct point
-in the conversation.
+Pause stops the current audio while preserving its position. Resume continues
+that turn. End cancels audio, pending fetches, and stale callbacks. If hosted
+speech fails, the complete reviewed transcript continues visually and quietly;
+the application never falls back to an operating-system voice.
 
 ### Progressive disclosure
 
@@ -100,15 +103,20 @@ Unchecked generated text never enters the UI or audio queue.
 - Next.js and Netlify render the page and short request/response control plane.
 - `/api/mental-health/respond` owns structured input assessment, application
   routing, bounded generation, output review, and reviewed replacement.
-- Guided calls use deterministic copy so the demo survives provider failure.
-- Browser speech synthesis makes speaking and cancellation demonstrable without
-  collecting microphone or phone data.
+- Guided calls use deterministic, reviewed copy so the demo survives provider
+  failure and never exposes unchecked generated speech.
+- `/api/mental-health/speech` accepts only a scenario ID and turn index, resolves
+  the allowlisted script server-side, and requests MP3 speech from Together.
+- Receptionist and caller use distinct Together voices. The Together API key is
+  never exposed to the browser.
+- The browser plays returned audio without microphone or phone capture. It does
+  not use `speechSynthesis` as a fallback.
 
 ### Web-only multi-turn adapter
 
 ```text
-Visitor choice → React conversation state → typed safety route
-               → approved response → browser speech → visitor
+Scenario + turn index → allowlisted application script → Together TTS proxy
+                      → browser audio + synchronized transcript → next turn
 ```
 
 Netlify serves the complete demo. No phone number, Twilio/LiveKit connection,
@@ -142,19 +150,25 @@ for this demo and remains only as future telephony prior art.
 
 - no raw public-demo text in Plausible, Helicone, application logs, browser
   storage, Netlify Database, CI artifacts, or benchmark reports;
-- live text is sent transiently to Together only after explicit acknowledgement;
+- allowlisted synthetic script text is sent transiently to Together for speech;
+- live free-form text is sent transiently to Together only after explicit
+  acknowledgement inside the disclosed guardrail lab;
 - browser-demo analytics contain scenario ID, route, policy, provider, and
   interaction actions—not transcript content;
-- no audio is recorded or uploaded by the browser demo;
+- no microphone audio is captured, recorded, or uploaded by the browser demo;
+- returned synthetic MP3 audio is not persisted by the application;
 - bounded in-memory phone history must be erased at call end.
 
 ## Acceptance gates
 
 - the voice demo is the dominant first-screen surface at 390, 830, and 1353 px;
-- the routine call includes a clarification, visitor choice, and honest next step;
+- the routine call begins with an audible greeting, contains at least eight
+  alternating turns, and ends with an honest goodbye;
 - disclosed elevated and urgent synthetic calls reach their expected outcomes;
 - urgent output contains reviewed resources and no commercial CTA;
-- barge-in cancels current audio and shows a legible recovery state;
+- pause/resume preserves the current audio position, and end cancels stale work;
+- hosted speech failure produces a calm visual-only call without a robotic
+  operating-system voice;
 - the safety trace is collapsed by default and keyboard reachable;
 - reduced-motion mode disables nonessential movement;
 - no page-level horizontal overflow;
@@ -176,7 +190,8 @@ for this demo and remains only as future telephony prior art.
 - [SonderMind guardrail evals](https://github.com/SonderMindOrg/sonder-guardrail-evals)
 - [Together structured outputs](https://docs.together.ai/docs/inference/chat/structured-outputs)
 - [Together realtime transcription](https://docs.together.ai/reference/audio-transcriptions-realtime)
-- [Together realtime speech](https://docs.together.ai/reference/audio-speech-websocket)
+- [Together text to speech overview](https://docs.together.ai/docs/inference/text-to-speech/overview)
+- [Together audio speech API](https://docs.together.ai/reference/audio-speech)
 - [Twilio bidirectional Media Streams](https://www.twilio.com/docs/voice/media-streams/websocket-messages)
 - [SAMHSA 988 FAQ](https://www.samhsa.gov/mental-health/988/faqs)
 - [NIST AI 600-1](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf)

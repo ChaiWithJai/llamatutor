@@ -23,16 +23,19 @@ Keep the isolated `/mental-health` route and typed safety contract, but invert
 the information hierarchy:
 
 1. the browser voice receptionist and transcript own the primary surface;
-2. guided synthetic calls work without provider or phone credentials;
-3. browser speech makes speaking and cancellation tangible without collecting
-   microphone or telephone data;
-4. the routine path is multi-turn and asks the visitor to make one meaningful
-   scheduling choice before showing an honest proposed next step;
+2. guided synthetic calls use application-owned scripts and remain legible if
+   the speech provider fails;
+3. natural hosted text-to-speech makes a full call tangible without collecting
+   microphone or telephone data or exposing provider credentials;
+4. the routine path begins with the receptionist's greeting, alternates caller
+   and receptionist for at least eight turns, and reaches an honest goodbye;
 5. ambiguous and urgent examples move behind a secondary disclosure;
 6. the safety trace, infrastructure, evaluation, and limitations appear in FAQ
    and **How we built this** disclosures below the call;
-7. urgent outcomes suppress commercial calls to action; and
-8. an acknowledged live Together text lab remains available only as an
+7. urgent outcomes suppress commercial calls to action;
+8. the browser never substitutes an operating-system speech voice when hosted
+   speech fails; and
+9. an acknowledged live Together text lab remains available only as an
    inspection tool.
 
 The safety contract remains unchanged in substance: validate structured input,
@@ -40,10 +43,14 @@ let application code route, generate only when permitted, buffer the candidate,
 approve the complete output, and then reveal or speak it. Abstention and failure
 select reviewed conservative content.
 
-Netlify serves the complete demo. No phone number, Twilio/LiveKit connection,
-DigitalOcean worker, microphone permission, or raw audio transport is part of
-this slice. The browser demo is explicitly labelled as synthetic and cannot be
-used as evidence that telephony, codecs, or transfer are production-ready.
+Netlify serves the page and an allowlisted speech proxy. The browser submits
+only a scenario ID and turn index; the server resolves reviewed text and sends
+it transiently to Together's text-to-speech API. Distinct caller and
+receptionist voices return as MP3 audio. No phone number, Twilio/LiveKit
+connection, DigitalOcean worker, microphone permission, or caller audio
+transport is part of this slice. The browser demo is explicitly labelled as
+synthetic and cannot be used as evidence that telephony, codecs, or transfer
+are production-ready.
 
 ## Alternatives considered
 
@@ -71,9 +78,11 @@ core demonstration of multi-turn policy and interaction design.
 
 The demo now communicates the outcome in seconds and still supports a deep
 technical walkthrough. The guided call is a simulation, so copy and analytics
-must remain honest about that fact. The call state machine and interruption UI
-provide an acceptance seam for Issue #57, while Issue #60 supplies evidence
-about the current text guards before stronger claims are made.
+must remain honest about that fact. The allowlisted proxy makes provider
+failure, key isolation, and audio cancellation testable without accepting
+arbitrary text. The call state machine and interruption UI provide an
+acceptance seam for Issue #57, while Issue #60 supplies evidence about the
+current text guards before stronger claims are made.
 
 Broader release remains blocked on external corpus permission, independent
 route review, real acoustic testing, and the privacy/incident decisions listed

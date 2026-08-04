@@ -39,3 +39,16 @@
     window_limit = 8
     window_size = 60
     aggregate_by = ["ip", "domain"]
+
+[[redirects]]
+  from = "/api/mental-health/speech"
+  to = "/api/mental-health/speech"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    # A complete guided call uses up to nine requests. This permits three
+    # demonstrations per minute while bounding metered provider traffic.
+    window_limit = 30
+    window_size = 60
+    aggregate_by = ["ip", "domain"]
