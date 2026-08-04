@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePlausible } from "next-plausible";
 import { useEffect, useRef, useState } from "react";
 import {
   demoScenarios,
@@ -12,6 +13,19 @@ import styles from "@/app/mental-health/mental-health.module.css";
 
 type DemoView = "intro" | "lab";
 type LabMode = "guided" | "live";
+
+type ReflectionAnalytics = {
+  experiment_opened: { surface: "intro" };
+  scenario_selected: { scenario: string; synthetic: boolean };
+  harness_completed: {
+    route: string;
+    policy: string;
+    provider: string;
+    synthetic: boolean;
+  };
+  voice_cta_selected: { route: string; policy: string };
+  experiment_exited: { surface: "header" };
+};
 
 const routeCopy = {
   routine: {
@@ -30,7 +44,7 @@ const routeCopy = {
   },
 } as const;
 
-function ExperimentHeader() {
+function ExperimentHeader({ onExit }: { onExit: () => void }) {
   return (
     <header className={styles.header}>
       <div className={styles.lockup}>
@@ -48,7 +62,9 @@ function ExperimentHeader() {
       </div>
       <div className={styles.headerActions}>
         <span className={styles.experimentBadge}>Experiment</span>
-        <Link href="/">Leave mode</Link>
+        <Link href="/" onClick={onExit}>
+          Leave mode
+        </Link>
       </div>
     </header>
   );
@@ -66,6 +82,7 @@ function LoopMark() {
 }
 
 export default function MentalHealthDemo() {
+  const plausible = usePlausible<ReflectionAnalytics>();
   const [view, setView] = useState<DemoView>("intro");
   const [mode, setMode] = useState<LabMode>("guided");
   const [message, setMessage] = useState("");
@@ -103,6 +120,14 @@ export default function MentalHealthDemo() {
         throw new Error("error" in payload ? payload.error : "Demo failed.");
       }
       setResult(payload);
+      plausible("harness_completed", {
+        props: {
+          route: payload.route,
+          policy: payload.assessment.policyVersion,
+          provider: payload.provider,
+          synthetic: payload.provider === "guided",
+        },
+      });
     } catch (runError) {
       setError(
         runError instanceof Error
@@ -122,7 +147,11 @@ export default function MentalHealthDemo() {
 
   return (
     <div className={styles.page}>
-      <ExperimentHeader />
+      <ExperimentHeader
+        onExit={() =>
+          plausible("experiment_exited", { props: { surface: "header" } })
+        }
+      />
       <main id="main" className={styles.main}>
         {view === "intro" ? (
           <section className={styles.intro} aria-labelledby="intro-title">
@@ -139,7 +168,15 @@ export default function MentalHealthDemo() {
                 response, then approve it before reveal.
               </p>
               <div className={styles.introActions}>
-                <button type="button" onClick={() => setView("lab")}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    plausible("experiment_opened", {
+                      props: { surface: "intro" },
+                    });
+                    setView("lab");
+                  }}
+                >
                   Try the demo <span aria-hidden="true">→</span>
                 </button>
                 <a href="#how-it-works">See the four checks</a>
@@ -281,9 +318,12 @@ export default function MentalHealthDemo() {
                         key={scenario.id}
                         data-accent={scenario.accent}
                         disabled={loading}
-                        onClick={() =>
-                          runDemo({ mode: "guided", scenarioId: scenario.id })
-                        }
+                        onClick={() => {
+                          plausible("scenario_selected", {
+                            props: { scenario: scenario.id, synthetic: true },
+                          });
+                          runDemo({ mode: "guided", scenarioId: scenario.id });
+                        }}
                       >
                         <span>{scenario.eyebrow}</span>
                         <strong>{scenario.title}</strong>
@@ -297,6 +337,9 @@ export default function MentalHealthDemo() {
                     className={styles.liveForm}
                     onSubmit={(event) => {
                       event.preventDefault();
+                      plausible("scenario_selected", {
+                        props: { scenario: "live", synthetic: false },
+                      });
                       runDemo({ mode: "live", message, acknowledged });
                     }}
                   >
@@ -454,7 +497,17 @@ export default function MentalHealthDemo() {
                   <i>→</i>
                   <span>TTS</span>
                 </div>
-                <a href="mailto:hello@dharmicdata.org?subject=Build%20an%20AI%20voice%20receptionist">
+                <a
+                  href="mailto:hello@dharmicdata.org?subject=Build%20an%20AI%20voice%20receptionist"
+                  onClick={() =>
+                    plausible("voice_cta_selected", {
+                      props: {
+                        route: result.route,
+                        policy: result.assessment.policyVersion,
+                      },
+                    })
+                  }
+                >
                   Build a voice receptionist with this pattern →
                 </a>
               </section>
