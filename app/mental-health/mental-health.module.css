@@ -592,6 +592,7 @@
 
 .tracePanel {
   min-height: 37rem;
+  scroll-margin-top: 0.75rem;
 }
 
 .emptyTrace,
@@ -874,13 +875,8 @@
 }
 
 @media (max-width: 980px) {
-  .labGrid,
   .voiceCard {
     grid-template-columns: 1fr;
-  }
-
-  .tracePanel {
-    min-height: auto;
   }
 
   .voiceCard > a {
@@ -932,6 +928,14 @@
   .labHeading {
     display: grid;
     align-items: start;
+  }
+
+  .labGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tracePanel {
+    min-height: auto;
   }
 
   .restart {

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   demoScenarios,
   MENTAL_HEALTH_POLICY_VERSION,
@@ -73,6 +73,18 @@ export default function MentalHealthDemo() {
   const [result, setResult] = useState<MentalHealthDemoResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tracePanelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!result || window.innerWidth > 720) return;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    tracePanelRef.current?.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [result]);
 
   async function runDemo(body: object) {
     setLoading(true);
@@ -326,6 +338,7 @@ export default function MentalHealthDemo() {
               </section>
 
               <section
+                ref={tracePanelRef}
                 className={styles.tracePanel}
                 aria-live="polite"
                 aria-busy={loading}
