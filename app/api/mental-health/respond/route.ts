@@ -9,15 +9,29 @@ import {
   reviewedReplies,
   voiceScenarios,
   type HarnessStage,
+  type MentalHealthDemoResult,
   type MentalHealthRoute,
   type SafetyAssessment,
 } from "../../../../utils/mentalHealthPolicy";
+import {
+  edgeCaseAsScenario,
+  getEdgeCase,
+} from "../../../../utils/mentalHealthEdgeCases";
+import { issueReviewedSpeechGrant } from "../../../../utils/reviewedSpeechGrant";
 
 const requestSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("guided"), scenarioId: z.string() }),
   z.object({
     mode: z.literal("live"),
     message: z.string().trim().min(8).max(1200),
+    acknowledged: z.literal(true),
+  }),
+  // The live caller seat. A spoken turn can legitimately be one word ("Yes."),
+  // so the floor is lower than the typed lab — every other guarantee is the same.
+  z.object({
+    mode: z.literal("caller"),
+    scenarioId: z.string().min(1).max(80),
+    message: z.string().trim().min(1).max(1200),
     acknowledged: z.literal(true),
   }),
 ]);
@@ -165,10 +179,24 @@ async function togetherJson<T>(options: {
   };
 }
 
-export function responseRuleForRoute(route: MentalHealthRoute) {
-  return route === "elevated"
-    ? "Acknowledge the distress, ask exactly one direct question about whether the person is thinking of hurting themselves right now, and mention call or text 988 in the US. Do not continue coaching beyond that question."
-    : "Offer one grounded reflection and one small practical next step, then ask one short question.";
+/**
+ * Maya answers a demonstration reception line; the text lab answers as a
+ * reflection coach. The persona changes the wording rule only — the route,
+ * the 0.72 fail-closed threshold, and the output review are identical.
+ */
+export type HarnessPersona = "reflection" | "receptionist";
+
+export function responseRuleForRoute(
+  route: MentalHealthRoute,
+  persona: HarnessPersona = "reflection",
+) {
+  if (route === "elevated") {
+    return "Acknowledge the distress, ask exactly one direct question about whether the person is thinking of hurting themselves right now, and mention call or text 988 in the US. Do not continue coaching beyond that question.";
+  }
+  if (persona === "receptionist") {
+    return "Answer as Maya, a virtual receptionist on a demonstration line. Offer only demonstration appointment times, ask at most one question, and say plainly that nothing is booked or saved. Never confirm a real appointment, quote a price, or confirm insurance coverage.";
+  }
+  return "Offer one grounded reflection and one small practical next step, then ask one short question.";
 }
 
 export async function assessMentalHealthInput(message: string) {
@@ -204,9 +232,10 @@ export async function reviewMentalHealthOutput(options: {
   message: string;
   candidate: string;
   route: MentalHealthRoute;
+  persona?: HarnessPersona;
 }) {
   const model = process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B";
-  const responseRule = responseRuleForRoute(options.route);
+  const responseRule = responseRuleForRoute(options.route, options.persona);
   const checked = await togetherJson({
     model,
     name: "reflection_output_check",
@@ -233,7 +262,10 @@ export async function reviewMentalHealthOutput(options: {
   };
 }
 
-export async function runLiveHarness(message: string) {
+export async function runLiveHarness(
+  message: string,
+  persona: HarnessPersona = "reflection",
+) {
   const safetyModel = process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B";
   const coachModel = process.env.TOGETHER_COACH_MODEL ?? safetyModel;
 
@@ -289,7 +321,7 @@ export async function runLiveHarness(message: string) {
     };
   }
 
-  const responseRule = responseRuleForRoute(route);
+  const responseRule = responseRuleForRoute(route, persona);
 
   const drafted = await togetherJson({
     model: coachModel,
@@ -299,7 +331,7 @@ export async function runLiveHarness(message: string) {
     messages: [
       {
         role: "system",
-        content: `You write a response for an educational reflection demo. ${responseRule} Use no more than 90 words. Never diagnose, prescribe treatment, claim a human is monitoring, or claim to be a therapist.`,
+        content: `You write a response for an educational ${persona === "receptionist" ? "receptionist" : "reflection"} demo. ${responseRule} Use no more than 90 words. Never diagnose, prescribe treatment, claim a human is monitoring, or claim to be a therapist.`,
       },
       { role: "user", content: message },
     ],
@@ -316,6 +348,7 @@ export async function runLiveHarness(message: string) {
     message,
     candidate: drafted.value.response,
     route,
+    persona,
   });
   const approved = checked.approved;
   trace.push({
@@ -358,13 +391,47 @@ export async function POST(request: Request) {
 
   if (parsed.data.mode === "guided") {
     const scenarioId = parsed.data.scenarioId;
-    const scenario = [...demoScenarios, ...voiceScenarios].find(
-      (candidate) => candidate.id === scenarioId,
-    );
+    const edgeCase = getEdgeCase(scenarioId);
+    const scenario = edgeCase
+      ? edgeCaseAsScenario(edgeCase)
+      : [...demoScenarios, ...voiceScenarios].find(
+          (candidate) => candidate.id === scenarioId,
+        );
     if (!scenario) {
       return NextResponse.json({ error: "Unknown scenario." }, { status: 404 });
     }
     return NextResponse.json(buildGuidedDemoResult(scenario));
+  }
+
+  if (parsed.data.mode === "caller") {
+    if (process.env.MENTAL_HEALTH_LIVE_CALLER_ENABLED === "false") {
+      return NextResponse.json(
+        { error: "The live caller seat is temporarily unavailable." },
+        { status: 503 },
+      );
+    }
+
+    // The live seat runs the same boundary as the text lab: assess, route,
+    // generate only when the route allows it, then review the complete
+    // response. Only text that survives that review is signed for speech.
+    let result: MentalHealthDemoResult;
+    try {
+      result = await runLiveHarness(parsed.data.message, "receptionist");
+    } catch (error) {
+      const reason =
+        error instanceof Error && error.name === "TimeoutError"
+          ? "Classifier timed out"
+          : "Live classifier unavailable";
+      result = buildFallbackResult(reason);
+    }
+
+    return NextResponse.json({
+      ...result,
+      speechGrant: issueReviewedSpeechGrant({
+        text: result.reply,
+        speaker: "receptionist",
+      }),
+    });
   }
 
   try {

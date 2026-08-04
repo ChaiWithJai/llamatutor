@@ -55,9 +55,41 @@ Reviewer files may contain only scenario IDs and reviewer-owned labels:
 Public repository artifacts must not contain reviewer identity, raw case text,
 free-form sensitive notes, or clinical records.
 
+## Live caller seat
+
+A live participant is the person at this browser. There is no phone number,
+remote room, recording, persistence, transfer, or monitoring.
+
+- The microphone is requested only after an explicit **Join as caller**, never
+  on page load, and only for the duration of a held talk button. Maya's audio
+  and capture are never active at the same time.
+- Speech goes to `/api/mental-health/transcribe`, a server-only adapter with a
+  bounded clip size, a 15-second timeout, abort propagation, and owned failure
+  copy. The clip is transcribed and discarded; nothing is written anywhere.
+- Every reply to a live turn runs the same `assess → route → bounded generation
+  → complete output review` boundary as the text lab, at the same `0.72`
+  fail-closed confidence threshold.
+- `/api/mental-health/speech` remains an allowlist. It speaks a position in a
+  reviewed script, or text the server itself approved and signed with
+  `MENTAL_HEALTH_SPEECH_SECRET` (falling back to `TOGETHER_API_KEY`). It is
+  never an arbitrary text-to-speech proxy.
+- Analytics carry structured operational metadata only — mode, scenario ID,
+  route, provider, latency bucket, fallback reason, completion state. Raw
+  utterances and transcripts are never emitted or persisted.
+- An out-of-order or empty transcript abstains and asks again rather than
+  guessing, and a live → simulation handover preserves completed turns and any
+  urgent route already in force.
+
+Simulation draws from the reviewed synthetic manifest in
+`utils/mentalHealthEdgeCases.ts` with an explicit seed. Reproduce and record a
+run with `pnpm eval:mental-health:edge-cases -- --seed <seed>`, which prints
+case IDs and distributions only — never case text.
+
 ## Kill-switch drill
 
-The runtime kill switch is `MENTAL_HEALTH_DEMO_ENABLED=false`.
+The runtime kill switch is `MENTAL_HEALTH_DEMO_ENABLED=false`, and
+`MENTAL_HEALTH_LIVE_CALLER_ENABLED=false` independently closes the live caller
+seat while leaving the reviewed simulation available.
 
 1. Set it in the affected Netlify context without changing source.
 2. Verify the API returns `503` and no provider call is attempted.

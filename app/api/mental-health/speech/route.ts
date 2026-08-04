@@ -1,10 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getVoiceConversationTurn } from "../../../../utils/mentalHealthPolicy";
+import { getReviewedTurn } from "../../../../utils/mentalHealthEdgeCases";
+import { verifyReviewedSpeechGrant } from "../../../../utils/reviewedSpeechGrant";
 
-const requestSchema = z.object({
+/**
+ * This endpoint speaks application-owned text only. There are exactly two ways
+ * in: a position in a reviewed script, or text this server itself approved and
+ * signed. Neither lets a browser choose what the branded voice says.
+ */
+const scriptedSchema = z.object({
   scenarioId: z.string().min(1).max(80),
   turnIndex: z.number().int().min(0).max(20),
+});
+
+const grantSchema = z.object({
+  grant: z.object({
+    text: z.string().min(1).max(1800),
+    speaker: z.enum(["receptionist", "caller"]),
+    expiresAt: z.number(),
+    signature: z.string().min(1).max(200),
+  }),
 });
 
 const DEFAULT_MODEL = "cartesia/sonic-2";
@@ -21,18 +36,38 @@ async function createSpeech(payload: unknown) {
     );
   }
 
-  const parsed = requestSchema.safeParse(payload);
-  if (!parsed.success) {
+  const scripted = scriptedSchema.safeParse(payload);
+  const granted = scripted.success ? null : grantSchema.safeParse(payload);
+
+  if (!scripted.success && !granted?.success) {
     return NextResponse.json(
       { error: "Choose a reviewed conversation turn." },
       { status: 400 },
     );
   }
 
-  const turn = getVoiceConversationTurn(
-    parsed.data.scenarioId,
-    parsed.data.turnIndex,
-  );
+  let turn: { text: string; speaker: "receptionist" | "caller" } | undefined;
+  if (scripted.success) {
+    turn = getReviewedTurn(scripted.data.scenarioId, scripted.data.turnIndex);
+    if (!turn) {
+      return NextResponse.json(
+        { error: "Unknown conversation turn." },
+        { status: 404 },
+      );
+    }
+  } else if (granted?.success) {
+    if (!verifyReviewedSpeechGrant(granted.data.grant)) {
+      return NextResponse.json(
+        { error: "That response was not approved for speech." },
+        { status: 403 },
+      );
+    }
+    turn = {
+      text: granted.data.grant.text,
+      speaker: granted.data.grant.speaker,
+    };
+  }
+
   if (!turn) {
     return NextResponse.json(
       { error: "Unknown conversation turn." },
