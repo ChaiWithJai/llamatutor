@@ -36,7 +36,10 @@
   force = true
 
   [redirects.rate_limit]
-    window_limit = 8
+    # The live caller seat calls this once per caller turn, so a bounded
+    # six-turn conversation plus its decision trace is seven requests. This
+    # permits three live calls per minute while still bounding the classifier.
+    window_limit = 24
     window_size = 60
     aggregate_by = ["ip", "domain"]
 
@@ -47,8 +50,21 @@
   force = true
 
   [redirects.rate_limit]
-    # A complete guided call uses up to nine requests. This permits three
-    # demonstrations per minute while bounding metered provider traffic.
-    window_limit = 30
+    # A complete simulated case uses up to nine requests; a live call adds one
+    # reviewed reply per caller turn. This permits three demonstrations per
+    # minute while bounding metered provider traffic.
+    window_limit = 45
+    window_size = 60
+    aggregate_by = ["ip", "domain"]
+
+[[redirects]]
+  from = "/api/mental-health/transcribe"
+  to = "/api/mental-health/transcribe"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    # One request per live caller turn, bounded well under a runaway loop.
+    window_limit = 24
     window_size = 60
     aggregate_by = ["ip", "domain"]

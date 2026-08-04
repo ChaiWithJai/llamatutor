@@ -17,6 +17,7 @@
     "eval:learning-blocks:live": "tsx evaluation/learning-blocks/runLive.ts",
     "eval:mental-health:sondermind": "tsx evaluation/mental-health/runSondermind.ts",
     "eval:mental-health:voice": "tsx evaluation/mental-health/runVoicePerturbations.ts",
+    "eval:mental-health:edge-cases": "tsx evaluation/mental-health/runEdgeCaseSample.ts",
     "test:integration": "node scripts/test-database-integration.mjs",
     "test:e2e": "playwright test",
     "check": "pnpm lint && pnpm test:unit && pnpm build",
