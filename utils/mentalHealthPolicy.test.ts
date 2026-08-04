@@ -1,0 +1,68 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildFallbackResult,
+  buildGuidedDemoResult,
+  demoScenarios,
+  deriveMentalHealthRoute,
+  MENTAL_HEALTH_POLICY_VERSION,
+} from "./mentalHealthPolicy";
+
+describe("mental health demo policy", () => {
+  it.each(demoScenarios)("routes $id to $expectedRoute", (scenario) => {
+    const result = buildGuidedDemoResult(scenario);
+
+    expect(result.route).toBe(scenario.expectedRoute);
+    expect(result.assessment.policyVersion).toBe(MENTAL_HEALTH_POLICY_VERSION);
+    expect(result.trace.map((stage) => stage.id)).toEqual([
+      "input",
+      "route",
+      "response",
+      "output",
+    ]);
+    expect(result.reply.length).toBeGreaterThan(20);
+  });
+
+  it("promotes low-confidence and abstained results to elevated", () => {
+    expect(
+      deriveMentalHealthRoute({
+        policyVersion: MENTAL_HEALTH_POLICY_VERSION,
+        route: "routine",
+        confidence: 0.4,
+        abstain: false,
+        signals: [],
+      }),
+    ).toBe("elevated");
+
+    expect(
+      deriveMentalHealthRoute({
+        policyVersion: MENTAL_HEALTH_POLICY_VERSION,
+        route: "routine",
+        confidence: 0.99,
+        abstain: true,
+        signals: [],
+      }),
+    ).toBe("elevated");
+  });
+
+  it("never demotes an urgent assessment", () => {
+    expect(
+      deriveMentalHealthRoute({
+        policyVersion: MENTAL_HEALTH_POLICY_VERSION,
+        route: "urgent",
+        confidence: 0.2,
+        abstain: true,
+        signals: [],
+      }),
+    ).toBe("urgent");
+  });
+
+  it("uses reviewed copy when the provider fails", () => {
+    const result = buildFallbackResult("Classifier timed out");
+    expect(result.provider).toBe("fallback");
+    expect(result.route).toBe("elevated");
+    expect(result.assessment.abstain).toBe(true);
+    expect(result.trace.some((stage) => stage.status === "replaced")).toBe(
+      true,
+    );
+  });
+});

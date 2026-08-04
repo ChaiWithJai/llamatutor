@@ -28,3 +28,14 @@
     window_limit = 20
     window_size = 60
     aggregate_by = ["ip", "domain"]
+
+[[redirects]]
+  from = "/api/mental-health/respond"
+  to = "/api/mental-health/respond"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    window_limit = 8
+    window_size = 60
+    aggregate_by = ["ip", "domain"]
