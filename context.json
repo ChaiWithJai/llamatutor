@@ -6,7 +6,7 @@
     "issue": "https://github.com/ChaiWithJai/llamatutor/issues/69",
     "branch": "codex/issue-69-conversation-trajectories",
     "baseCommit": "6263436c78e99814bc86685bf46d6c88997cbbb8",
-    "status": "local-verification-complete"
+    "status": "deploy-preview-verified"
   },
   "incident": {
     "observedFailure": "A caller rejected both offered times and supplied a new constraint; the fallback claimed a choice was recorded and later closed over an explicit objection.",
@@ -81,6 +81,8 @@
       "npx netlify status",
       "npx netlify build",
       "npx netlify dev --port 3212 plus /api/health and caller-route probes",
+      "deploy-preview-70 hosted API three-turn incident replay",
+      "deploy-preview-70 visual review at 390, 830, and 1353 px",
       "three-turn Issue #69 replay against the local Together-backed API"
     ],
     "results": [
@@ -91,12 +93,12 @@
       "Netlify authentication/site linkage and Netlify-native build passed; the dev proxy injected the configured provider keys and served the application.",
       "A Netlify-dev provider probe exercised the truthful timeout-to-simulation error path; the handler returned 503 internally and the client detects the error payload even though the local self-rewrite presents HTTP 200 externally.",
       "The real Qwen/Qwen3.5-9B path classified all three incident turns as routine; its candidates were rejected and the state-aware reviewed fallbacks correctly produced procedure handoff, correction uptake, and bounded unresolved handoff.",
-      "The pinned SonderMind adapter now supports local-only per-human-turn trajectory mode over 107 distinct IDs and writes content-free turn facts; unavailable receptionist labels remain null and are covered by the owned suite."
+      "The pinned SonderMind adapter now supports local-only per-human-turn trajectory mode over 107 distinct IDs and writes content-free turn facts; unavailable receptionist labels remain null and are covered by the owned suite.",
+      "Deploy Preview 70 replayed the full incident successfully: procedure handoff, correction with acceptedSlot null and two_weeks preserved, then bounded_handoff with the goal still explicitly unresolved.",
+      "Deploy Preview 70 had no horizontal overflow at 390, 830, or 1353 px; temporary review screenshots were not committed."
     ],
     "next": [
-      "Publish the branch.",
-      "Open a pull request and wait for required CI and deploy preview.",
-      "Human-review the preview at 390, 830, and 1353 px.",
+      "Wait for the remaining GitHub quality gate.",
       "Merge, production-verify, comment with evidence, and close Issue #69."
     ]
   }
