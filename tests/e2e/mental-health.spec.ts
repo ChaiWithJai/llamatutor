@@ -1,110 +1,173 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("voice demo leads with a useful booking call", async ({ page }) => {
-  await page.goto("/mental-health");
+async function installDemoAudio(
+  page: Page,
+  options: { autoEnd?: boolean; fail?: boolean } = {},
+) {
+  await page.route("**/api/mental-health/speech**", async (route) => {
+    await route.fulfill({
+      status: options.fail ? 502 : 200,
+      contentType: options.fail ? "application/json" : "audio/mpeg",
+      body: options.fail
+        ? JSON.stringify({ error: "audio unavailable" })
+        : "ID3",
+    });
+  });
+  await page.addInitScript(
+    ({ autoEnd, fail }) => {
+      class DemoAudio {
+        src = "";
+        preload = "";
+        paused = true;
+        onplaying: (() => void) | null = null;
+        onended: (() => void) | null = null;
+        onerror: (() => void) | null = null;
 
-  await expect(
-    page.getByRole("heading", {
-      name: "A calm front desk, one turn at a time.",
-    }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Start demo call" }).click();
+        play() {
+          this.paused = false;
+          window.setTimeout(() => {
+            if (fail) {
+              this.onerror?.();
+              return;
+            }
+            this.onplaying?.();
+            if (autoEnd) window.setTimeout(() => this.onended?.(), 18);
+          }, 0);
+          return Promise.resolve();
+        }
 
-  await expect(page.getByText("What would you say next?")).toBeVisible();
-  await page.getByRole("button", { name: /Tuesday at 2:30/ }).click();
-  await expect(
-    page.getByText("Tuesday at 2:30 works better for me."),
-  ).toBeVisible();
-  await expect(page.getByText("Next step proposed")).toBeVisible();
-  await expect(page.getByText("Proposed only")).toBeVisible();
-  await expect(page.getByText("Nothing was booked or saved.")).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Build this for my team" }),
-  ).toBeVisible();
-});
+        pause() {
+          this.paused = true;
+          const testWindow = window as typeof window & {
+            __pauseCount?: number;
+          };
+          testWindow.__pauseCount = (testWindow.__pauseCount ?? 0) + 1;
+        }
 
-test("urgent call stops the commercial flow and reveals reviewed evidence", async ({
+        removeAttribute() {
+          this.src = "";
+        }
+
+        load() {}
+      }
+
+      Object.defineProperty(window, "Audio", {
+        configurable: true,
+        value: DemoAudio,
+      });
+    },
+    { autoEnd: options.autoEnd ?? true, fail: options.fail ?? false },
+  );
+}
+
+test("routine demo plays a complete alternating call from greeting to goodbye", async ({
   page,
 }) => {
+  await installDemoAudio(page);
   await page.goto("/mental-health");
-  await page.getByText("See how safety changes the conversation").click();
+
+  await expect(page.locator("article[data-speaker]")).toHaveCount(0);
+  await expect(page.getByText("Ready when you are")).toBeVisible();
+  await page.getByRole("button", { name: "Start the call" }).click();
+
+  await expect(
+    page.getByText("Thanks for calling Dharmic Care", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByText("Call complete", { exact: true })).toBeVisible();
+
+  const turns = page.locator("article[data-speaker]");
+  await expect(turns).toHaveCount(9);
+  await expect(turns.first()).toContainText("How can I help today?");
+  await expect(turns.last()).toContainText("Take care");
+  const speakers = await turns.evaluateAll((elements) =>
+    elements.map((element) => element.getAttribute("data-speaker")),
+  );
+  expect(speakers).toEqual([
+    "receptionist",
+    "caller",
+    "receptionist",
+    "caller",
+    "receptionist",
+    "caller",
+    "receptionist",
+    "caller",
+    "receptionist",
+  ]);
+  await expect(
+    page.getByText("The conversation reached a clear close", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Replay call" })).toBeVisible();
+});
+
+test("pause, resume, and end preserve control without stale playback", async ({
+  page,
+}) => {
+  await installDemoAudio(page, { autoEnd: false });
+  await page.goto("/mental-health");
+  await page.getByRole("button", { name: "Start the call" }).click();
+  await expect(
+    page.getByText("Thanks for calling Dharmic Care", { exact: false }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
+  await page.getByRole("button", { name: "Resume" }).click();
+  await expect(
+    page.getByRole("button", { name: "Pause", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "End call" }).click();
+  await expect(page.getByRole("button", { name: "Replay call" })).toBeVisible();
+  const pauseCount = await page.evaluate(
+    () => (window as typeof window & { __pauseCount?: number }).__pauseCount,
+  );
+  expect(pauseCount).toBeGreaterThanOrEqual(2);
+});
+
+test("urgent call completes with reviewed resources and no commercial CTA", async ({
+  page,
+}) => {
+  await installDemoAudio(page);
+  await page.goto("/mental-health");
   await page
     .getByRole("button", { name: /Immediate danger Stop the normal flow/ })
     .click();
-  await page.getByRole("button", { name: "Start demo call" }).click();
+  await page.getByRole("button", { name: "Start the call" }).click();
 
-  await expect(page.getByText("Normal flow stopped")).toBeVisible();
+  await expect(page.getByText("Call complete", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("call or text 988 now", { exact: false }),
+    page.getByText("call or text nine eight eight now", { exact: false }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Build this for my team" }),
+    page.getByRole("link", { name: "Build this for your line" }),
   ).toHaveCount(0);
-
-  await page
-    .getByText("What happens when a caller says something risky?")
-    .click();
-  await expect(
-    page.getByText("No unchecked model text returned"),
-  ).toBeVisible();
 });
 
-test("barge-in stops browser audio and exposes a clear recovery state", async ({
+test("audio failure completes quietly as an owned visual transcript", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    class DemoUtterance {
-      text: string;
-      rate = 1;
-      pitch = 1;
-      onend: (() => void) | null = null;
-      onerror: (() => void) | null = null;
+  await installDemoAudio(page, { fail: true });
+  await page.goto("/mental-health");
+  await page.getByRole("button", { name: "Start the call" }).click();
 
-      constructor(text: string) {
-        this.text = text;
-      }
-    }
-
-    Object.defineProperty(window, "SpeechSynthesisUtterance", {
-      configurable: true,
-      value: DemoUtterance,
-    });
-    Object.defineProperty(window, "speechSynthesis", {
-      configurable: true,
-      value: { cancel() {}, speak() {} },
-    });
+  await expect(
+    page.getByText("Natural audio is unavailable", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByText("Call complete", { exact: true })).toBeVisible({
+    timeout: 25_000,
   });
-  await page.goto("/mental-health");
-  await page.getByRole("button", { name: "Start demo call" }).click();
-  await page.getByRole("button", { name: "Interrupt voice" }).click();
-
-  await expect(page.getByText("Audio paused—conversation kept")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Resume conversation" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Resume conversation" }).click();
-  await expect(page.getByText("What would you say next?")).toBeVisible();
+  await expect(page.locator("article[data-speaker]")).toHaveCount(9);
 });
 
-test("live guardrail stays disclosed and the mobile viewport does not overflow", async ({
+test("reference layout reflows without overflow at governed widths", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/mental-health");
-  await page.getByText("Inspect the live Together guardrail").click();
-
-  const submit = page.getByRole("button", { name: "Run live check" });
-  await page
-    .getByRole("textbox", { name: "Transient test message" })
-    .fill("I have too many deadlines and want one smaller next step.");
-  await expect(submit).toBeDisabled();
-  await page
-    .getByRole("checkbox", { name: /I understand this is an engineering demo/ })
-    .check();
-  await expect(submit).toBeEnabled();
-
   for (const width of [390, 830, 1353]) {
     await page.setViewportSize({ width, height: 921 });
+    await page.goto("/mental-health");
+    await expect(
+      page.getByRole("heading", { name: "Choose a caller" }),
+    ).toBeVisible();
+    await expect(page.getByText("Ready when you are")).toBeVisible();
     const widths = await page.evaluate(() => ({
       client: document.documentElement.clientWidth,
       scroll: document.documentElement.scrollWidth,
@@ -113,15 +176,19 @@ test("live guardrail stays disclosed and the mobile viewport does not overflow",
   }
 });
 
-test("reduced motion keeps the conversation legible without animation", async ({
+test("reduced motion keeps active turns legible without animation", async ({
   page,
 }) => {
+  await installDemoAudio(page, { autoEnd: false });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/mental-health");
-
-  const animationName = await page
+  await page.getByRole("button", { name: "Start the call" }).click();
+  const firstTurn = page
     .locator("article[data-speaker='receptionist']")
-    .first()
-    .evaluate((element) => getComputedStyle(element).animationName);
+    .first();
+  await expect(firstTurn).toBeVisible();
+  const animationName = await firstTurn.evaluate(
+    (element) => getComputedStyle(element).animationName,
+  );
   expect(animationName).toBe("none");
 });

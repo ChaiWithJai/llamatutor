@@ -44,6 +44,21 @@ export type VoiceBookingChoice = {
   receptionistReply: string;
 };
 
+export type VoiceSpeaker = "receptionist" | "caller";
+
+export type VoiceConversationTurn = {
+  id: string;
+  speaker: VoiceSpeaker;
+  text: string;
+  pauseAfterMs: number;
+};
+
+export type VoiceConversation = {
+  scenarioId: string;
+  lineLabel: string;
+  turns: VoiceConversationTurn[];
+};
+
 export const demoScenarios: DemoScenario[] = [
   {
     id: "routine",
@@ -107,6 +122,166 @@ export const voiceScenarios: DemoScenario[] = [
     accent: "coral",
   },
 ];
+
+export const voiceConversations: VoiceConversation[] = [
+  {
+    scenarioId: "voice-booking",
+    lineLabel: "New patient line",
+    turns: [
+      {
+        id: "greeting",
+        speaker: "receptionist",
+        text: "Thanks for calling Dharmic Care. This is Maya, the virtual receptionist. How can I help today?",
+        pauseAfterMs: 520,
+      },
+      {
+        id: "request",
+        speaker: "caller",
+        text: "Hi, I’m a new patient, and I’d like to schedule a first appointment next Tuesday afternoon.",
+        pauseAfterMs: 420,
+      },
+      {
+        id: "format-question",
+        speaker: "receptionist",
+        text: "I’d be happy to help. Would you prefer an in-person appointment, or a virtual visit?",
+        pauseAfterMs: 420,
+      },
+      {
+        id: "format-answer",
+        speaker: "caller",
+        text: "A virtual visit would be best for me.",
+        pauseAfterMs: 360,
+      },
+      {
+        id: "time-question",
+        speaker: "receptionist",
+        text: "Great. For this demonstration, I can offer Tuesday at two thirty or four o’clock. Which works better?",
+        pauseAfterMs: 420,
+      },
+      {
+        id: "time-answer",
+        speaker: "caller",
+        text: "Two thirty, please.",
+        pauseAfterMs: 340,
+      },
+      {
+        id: "confirmation",
+        speaker: "receptionist",
+        text: "Perfect. In a real scheduling system, I would send Tuesday at two thirty to the practice for confirmation. Nothing was booked or saved in this demo. Is there anything else I can help with?",
+        pauseAfterMs: 460,
+      },
+      {
+        id: "caller-close",
+        speaker: "caller",
+        text: "No, that’s everything. Thank you.",
+        pauseAfterMs: 340,
+      },
+      {
+        id: "goodbye",
+        speaker: "receptionist",
+        text: "You’re welcome. Take care, and have a good afternoon.",
+        pauseAfterMs: 260,
+      },
+    ],
+  },
+  {
+    scenarioId: "voice-clarify",
+    lineLabel: "Support line",
+    turns: [
+      {
+        id: "greeting",
+        speaker: "receptionist",
+        text: "Thanks for calling Dharmic Care. This is Maya, the virtual receptionist. How can I help today?",
+        pauseAfterMs: 500,
+      },
+      {
+        id: "request",
+        speaker: "caller",
+        text: "I need to talk to someone. Everything feels like too much, and I can’t do this anymore.",
+        pauseAfterMs: 500,
+      },
+      {
+        id: "safety-question",
+        speaker: "receptionist",
+        text: "I’m glad you called. When you say you can’t do this anymore, are you thinking about hurting yourself right now?",
+        pauseAfterMs: 560,
+      },
+      {
+        id: "safety-answer",
+        speaker: "caller",
+        text: "No. I’m not thinking about hurting myself. I’m overwhelmed, and I’d like to talk with someone soon.",
+        pauseAfterMs: 480,
+      },
+      {
+        id: "next-step",
+        speaker: "receptionist",
+        text: "Thank you for telling me. I can help look for the earliest intake time. Would tomorrow morning or afternoon be easier? If your safety changes, call or text nine eight eight in the United States.",
+        pauseAfterMs: 480,
+      },
+      {
+        id: "time-answer",
+        speaker: "caller",
+        text: "Tomorrow morning would be better.",
+        pauseAfterMs: 360,
+      },
+      {
+        id: "confirmation",
+        speaker: "receptionist",
+        text: "Understood. In a real system, I would send that preference to the practice for confirmation. This demo did not save it. Thank you for calling.",
+        pauseAfterMs: 280,
+      },
+    ],
+  },
+  {
+    scenarioId: "voice-urgent",
+    lineLabel: "Safety line",
+    turns: [
+      {
+        id: "greeting",
+        speaker: "receptionist",
+        text: "Thanks for calling Dharmic Care. This is Maya, the virtual receptionist. How can I help today?",
+        pauseAfterMs: 500,
+      },
+      {
+        id: "danger-statement",
+        speaker: "caller",
+        text: "I’m planning to hurt myself tonight, and I have access to what I would use.",
+        pauseAfterMs: 420,
+      },
+      {
+        id: "reviewed-urgent-response",
+        speaker: "receptionist",
+        text: "Your immediate safety matters more than scheduling. In the United States, call or text nine eight eight now. If you may act soon or are in immediate danger, call nine one one or go to the nearest emergency department. If you can, move away from anything you could use and contact a trusted person who can stay with you.",
+        pauseAfterMs: 520,
+      },
+      {
+        id: "caller-acknowledgement",
+        speaker: "caller",
+        text: "Okay. I can move away from it and call nine eight eight now.",
+        pauseAfterMs: 380,
+      },
+      {
+        id: "urgent-close",
+        speaker: "receptionist",
+        text: "Please do that now. This demonstration cannot monitor the call or send help. Call or text nine eight eight, or call nine one one if the danger is immediate.",
+        pauseAfterMs: 260,
+      },
+    ],
+  },
+];
+
+export function getVoiceConversation(scenarioId: string) {
+  return voiceConversations.find(
+    (conversation) => conversation.scenarioId === scenarioId,
+  );
+}
+
+export function getVoiceConversationTurn(
+  scenarioId: string,
+  turnIndex: number,
+) {
+  return getVoiceConversation(scenarioId)?.turns[turnIndex];
+}
 
 export const voiceBookingChoices: VoiceBookingChoice[] = [
   {

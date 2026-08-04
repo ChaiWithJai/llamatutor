@@ -4,8 +4,11 @@ import {
   buildGuidedDemoResult,
   demoScenarios,
   deriveMentalHealthRoute,
+  getVoiceConversation,
+  getVoiceConversationTurn,
   MENTAL_HEALTH_POLICY_VERSION,
   voiceBookingChoices,
+  voiceConversations,
   voiceScenarios,
 } from "./mentalHealthPolicy";
 
@@ -47,6 +50,31 @@ describe("mental health demo policy", () => {
       expect(choice.receptionistReply).not.toMatch(/appointment is confirmed/i);
     },
   );
+
+  it.each(voiceConversations)(
+    "runs $scenarioId from greeting through a bounded close",
+    (conversation) => {
+      expect(conversation.turns.length).toBeGreaterThanOrEqual(5);
+      expect(conversation.turns[0]).toMatchObject({
+        id: "greeting",
+        speaker: "receptionist",
+      });
+      expect(conversation.turns.at(-1)?.speaker).toBe("receptionist");
+      conversation.turns.forEach((turn, index) => {
+        if (index > 0) {
+          expect(turn.speaker).not.toBe(conversation.turns[index - 1].speaker);
+        }
+        expect(turn.text.length).toBeGreaterThan(12);
+      });
+    },
+  );
+
+  it("only resolves application-owned voice turns", () => {
+    expect(getVoiceConversation("voice-booking")?.turns).toHaveLength(9);
+    expect(getVoiceConversationTurn("voice-booking", 0)?.id).toBe("greeting");
+    expect(getVoiceConversationTurn("unknown", 0)).toBeUndefined();
+    expect(getVoiceConversationTurn("voice-booking", 99)).toBeUndefined();
+  });
 
   it("promotes low-confidence and abstained results to elevated", () => {
     expect(

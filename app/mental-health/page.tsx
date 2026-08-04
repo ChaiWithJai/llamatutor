@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "AI Voice Receptionist Demo | Dharmic Data",
   description:
-    "Hear a browser-based AI receptionist handle booking, ambiguous distress, urgent language, and interruption—then inspect how it was built.",
+    "Hear a complete synthetic AI receptionist call from greeting to goodbye, powered by Together natural voice and an inspectable safety route.",
 };
 
 export default function MentalHealthPage() {
