@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-04",
+  "objective": "Resolve GitHub issue 69 by making the web receptionist stateful and evaluating full multi-turn trajectories instead of isolated utterances.",
+  "delivery": {
+    "issue": "https://github.com/ChaiWithJai/llamatutor/issues/69",
+    "branch": "codex/issue-69-conversation-trajectories",
+    "baseCommit": "6263436c78e99814bc86685bf46d6c88997cbbb8",
+    "status": "deploy-preview-verified"
+  },
+  "incident": {
+    "observedFailure": "A caller rejected both offered times and supplied a new constraint; the fallback claimed a choice was recorded and later closed over an explicit objection.",
+    "rootCause": "Transcript text was present, but the application had no validated semantic state and selected routine fallbacks by turn number.",
+    "releaseInvariant": "A reply may close only after explicit caller exit, a resolved demonstration choice, a safety stop, or a truthful bounded handoff."
+  },
+  "trajectorySuite": {
+    "targetCount": 128,
+    "composition": {
+      "sondermind": 107,
+      "mindeval": 7,
+      "healthbench": 7,
+      "veraMh": 7
+    },
+    "countDecision": "107 is 30.1% of the 355 fixtures observed at the pinned SonderMind commit. The three seven-case sets are bounded methodology probes, not copied benchmark cases; literal ten-percent samples are unavailable or incompatible with the 125-130 total and licensing boundary.",
+    "privacyAndLicense": "Do not vendor, publish, or log external raw text. All trajectory dialogue in this repository is newly written application-owned synthetic text. External sources contribute content-free provenance, evaluation dimensions, and sampling strategy only.",
+    "purpose": "A deterministic release gate over transition validity, correction uptake, constraint carryover, repeated questions, premature close, truthful resolution or handoff, and fallback quality."
+  },
+  "sources": [
+    {
+      "name": "SonderMind guardrail evals",
+      "url": "https://github.com/SonderMindOrg/sonder-guardrail-evals",
+      "pin": "4a3c503e0f55de86c2270c1560cb54a7e2a3bf49",
+      "use": "Content-free category distribution and 107-case sample budget; existing 255 input and 100 output metrics remain separate."
+    },
+    {
+      "name": "MindEval",
+      "url": "https://swordhealth.com/research/mindeval-benchmarking-llms-mental-health-support",
+      "use": "Patient simulator, bounded persona, full-transcript judge, repair and alliance dimensions."
+    },
+    {
+      "name": "HealthBench",
+      "url": "https://openai.com/index/healthbench/",
+      "use": "Multi-turn conversations, per-conversation rubrics, context awareness, completeness and uncertainty dimensions."
+    },
+    {
+      "name": "VERA-MH",
+      "url": "https://www.vera-mh.com/resources",
+      "use": "Risk-aware personas, branching yes/no criteria, clarification and escalation dimensions."
+    },
+    {
+      "name": "AI Engineer World’s Fair 2026",
+      "url": "https://www.ai.engineer/worldsfair/2026/llms-full.md",
+      "use": "Treat missed corrections, turn-taking errors and false success as trajectory incidents."
+    },
+    {
+      "name": "Latent Space realtime manual",
+      "url": "https://www.latent.space/p/realtime-api//",
+      "use": "Carry the history the caller actually heard and evaluate multi-turn state, not a final answer alone."
+    },
+    {
+      "name": "Latent Space Lindy incident-to-eval loop",
+      "url": "https://www.latent.space/p/lindy//",
+      "use": "Convert a failed production conversation into a replayable regression."
+    }
+  ],
+  "decisions": [
+    "Keep the independent routine/elevated/urgent safety route as an override.",
+    "Derive and validate receptionist state in application code before generation.",
+    "Treat model conversationComplete as a proposal; application state owns closure.",
+    "Choose reviewed fallbacks from validated nextAction, never turn number.",
+    "Keep the demo web-only, ephemeral, non-clinical and incapable of real booking.",
+    "Keep external-corpus fields without receptionist labels explicitly unmapped instead of manufacturing contradiction, repair, or close labels."
+  ],
+  "verification": {
+    "commands": [
+      "pnpm eval:mental-health:trajectories",
+      "pnpm lint",
+      "pnpm test:unit",
+      "pnpm build",
+      "pnpm test:e2e",
+      "npx netlify status",
+      "npx netlify build",
+      "npx netlify dev --port 3212 plus /api/health and caller-route probes",
+      "deploy-preview-70 hosted API three-turn incident replay",
+      "deploy-preview-70 visual review at 390, 830, and 1353 px",
+      "three-turn Issue #69 replay against the local Together-backed API"
+    ],
+    "results": [
+      "128/128 trajectory cases passed; zero invalid transitions, contradictions, missed repairs, question misalignments, constraint failures, repeated questions, premature closes, or provider errors in the deterministic layer.",
+      "263/263 unit tests passed.",
+      "88/88 Playwright tests passed across desktop and mobile Chromium, including the Issue #69 replay and state carryover assertions.",
+      "Production build passed.",
+      "Netlify authentication/site linkage and Netlify-native build passed; the dev proxy injected the configured provider keys and served the application.",
+      "A Netlify-dev provider probe exercised the truthful timeout-to-simulation error path; the handler returned 503 internally and the client detects the error payload even though the local self-rewrite presents HTTP 200 externally.",
+      "The real Qwen/Qwen3.5-9B path classified all three incident turns as routine; its candidates were rejected and the state-aware reviewed fallbacks correctly produced procedure handoff, correction uptake, and bounded unresolved handoff.",
+      "The pinned SonderMind adapter now supports local-only per-human-turn trajectory mode over 107 distinct IDs and writes content-free turn facts; unavailable receptionist labels remain null and are covered by the owned suite.",
+      "Deploy Preview 70 replayed the full incident successfully: procedure handoff, correction with acceptedSlot null and two_weeks preserved, then bounded_handoff with the goal still explicitly unresolved.",
+      "Deploy Preview 70 had no horizontal overflow at 390, 830, or 1353 px; temporary review screenshots were not committed."
+    ],
+    "next": [
+      "Wait for the remaining GitHub quality gate.",
+      "Merge, production-verify, comment with evidence, and close Issue #69."
+    ]
+  }
+}

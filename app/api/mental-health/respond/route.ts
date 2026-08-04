@@ -18,6 +18,15 @@ import {
   getEdgeCase,
 } from "../../../../utils/mentalHealthEdgeCases";
 import { issueReviewedSpeechGrant } from "../../../../utils/reviewedSpeechGrant";
+import {
+  initialReceptionConversationState,
+  replayReceptionConversation,
+  receptionConversationComplete,
+  receptionConversationStateSchema,
+  receptionistReplyIsCoherent,
+  reviewedReceptionistReply,
+  type ReceptionConversationState,
+} from "../../../../utils/receptionConversation";
 
 const requestSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("guided"), scenarioId: z.string() }),
@@ -35,6 +44,7 @@ const requestSchema = z.discriminatedUnion("mode", [
     acknowledged: z.literal(true),
     turnNumber: z.number().int().min(1).max(6).default(1),
     forceClose: z.boolean().default(false),
+    conversationState: receptionConversationStateSchema.optional(),
     history: z
       .array(
         z.object({
@@ -226,16 +236,12 @@ export function responseRuleForRoute(
 export function reviewedReplyForPersona(
   route: MentalHealthRoute,
   persona: HarnessPersona,
-  turnNumber = 1,
+  conversationState?: ReceptionConversationState,
 ) {
   if (persona === "receptionist" && route === "routine") {
-    if (turnNumber <= 1) {
-      return "For this demonstration, I can offer Tuesday at 2:00 PM or 3:30 PM. Nothing is booked or saved. Which time works better for you?";
-    }
-    if (turnNumber === 2) {
-      return "I’ve noted that choice for this demonstration only; nothing is booked or saved. Is there anything else you would like to ask before we close?";
-    }
-    return "That completes this demonstration call. Nothing was booked or saved. Thank you for calling, and take care.";
+    return reviewedReceptionistReply(
+      conversationState ?? initialReceptionConversationState(),
+    );
   }
   return reviewedReplies[route];
 }
@@ -310,6 +316,7 @@ export async function runLiveHarness(
     history: Array<{ speaker: "caller" | "receptionist"; text: string }>;
     turnNumber: number;
     forceClose: boolean;
+    conversationState?: ReceptionConversationState;
   },
 ) {
   const safetyModel = process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B";
@@ -333,6 +340,16 @@ export async function runLiveHarness(
         .map((turn) => `CALLER: ${turn.text}`)
         .join("\n")
     : message;
+  const conversationState =
+    persona === "receptionist"
+      ? replayReceptionConversation(
+          conversation?.history
+            .filter((turn) => turn.speaker === "caller")
+            .map((turn) => turn.text) ?? [],
+          message,
+          { forceClose: conversation?.forceClose },
+        )
+      : undefined;
   const assessed = await assessMentalHealthInput(safetyTranscript);
   const assessment = assessed.assessment;
   const route = deriveMentalHealthRoute(assessment);
@@ -349,7 +366,10 @@ export async function runLiveHarness(
     {
       id: "route",
       label: "Application route",
-      detail: `${route} policy selected by server code`,
+      detail:
+        persona === "receptionist"
+          ? `${route} policy selected · semantic transition validated from revealed transcript`
+          : `${route} policy selected by server code`,
       status: "routed",
       durationMs: 1,
     },
@@ -378,11 +398,12 @@ export async function runLiveHarness(
     return {
       assessment,
       route,
-      reply: reviewedReplyForPersona(route, persona, conversation?.turnNumber),
+      reply: reviewedReplyForPersona(route, persona, conversationState),
       provider: "together" as const,
       model: safetyModel,
       trace,
       conversationComplete: persona === "receptionist",
+      conversationState,
     };
   }
 
@@ -405,7 +426,7 @@ export async function runLiveHarness(
         role: "system",
         content: `You write a response for an educational ${persona === "receptionist" ? "receptionist" : "reflection"} demo. ${responseRule} Use no more than 90 words. Never diagnose, prescribe treatment, claim a human is monitoring, or claim to be a therapist.${
           persona === "receptionist"
-            ? ` This is caller turn ${conversation?.turnNumber ?? 1}. Use the bounded transcript so this is genuinely multi-turn. Never greet or reintroduce Maya after turn one. Never repeat a question already answered. Ask at most one next question. Set conversationComplete true when the caller says goodbye or the task is resolved. ${conversation?.forceClose ? "This is the final turn: close the demonstration clearly and set conversationComplete true." : "Do not close merely because a turn ended."}`
+            ? ` This is caller turn ${conversation?.turnNumber ?? 1}. The application has already validated this next conversation state: ${JSON.stringify(conversationState)}. Write only from that state. Never greet or reintroduce Maya after turn one. Never repeat a question already answered. Ask at most one next question. A bounded handoff must say the request remains unresolved and that practice staff would need to continue. Set conversationComplete true only when nextAction is close or closeReason is bounded_handoff.`
             : ""
         }`,
       },
@@ -426,13 +447,24 @@ export async function runLiveHarness(
     route,
     persona,
   });
-  const approved = checked.approved;
+  const stateCoherent =
+    persona !== "receptionist" ||
+    !conversationState ||
+    receptionistReplyIsCoherent(
+      conversationState,
+      drafted.value.response,
+      (drafted.value as z.infer<typeof callerCandidateSchema>)
+        .conversationComplete,
+    );
+  const approved = checked.approved && stateCoherent;
   trace.push({
     id: "output",
     label: "Output check",
     detail: approved
       ? "Approved before reveal"
-      : `Rejected; reviewed ${route} response substituted`,
+      : stateCoherent
+        ? `Rejected; reviewed ${route} response substituted`
+        : "Rejected; candidate contradicted validated conversation state",
     status: approved ? "passed" : "replaced",
     durationMs: checked.durationMs,
   });
@@ -442,17 +474,17 @@ export async function runLiveHarness(
     route,
     reply: approved
       ? drafted.value.response
-      : reviewedReplyForPersona(route, persona, conversation?.turnNumber),
+      : reviewedReplyForPersona(route, persona, conversationState),
     provider: "together" as const,
     model: `${safetyModel} · ${coachModel}`,
     trace,
     conversationComplete:
       persona === "receptionist"
-        ? approved
-          ? (drafted.value as z.infer<typeof callerCandidateSchema>)
-              .conversationComplete
-          : (conversation?.turnNumber ?? 1) >= 3
+        ? conversationState
+          ? receptionConversationComplete(conversationState)
+          : false
         : false,
+    conversationState,
   };
 }
 
@@ -505,6 +537,7 @@ export async function POST(request: Request) {
         history: parsed.data.history,
         turnNumber: parsed.data.turnNumber,
         forceClose: parsed.data.forceClose,
+        conversationState: parsed.data.conversationState,
       });
     } catch (error) {
       return NextResponse.json(

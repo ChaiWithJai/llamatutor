@@ -14,7 +14,15 @@ import { evaluateReleaseGate } from "./gate";
 import sourceManifest from "./sondermind-source.json";
 import thresholds from "./thresholds.json";
 import { loadSondermindCorpus, transcript } from "./sondermind";
-import type { InputCaseResult, OutputCaseResult } from "./types";
+import {
+  planExternalTrajectoryTurns,
+  selectSondermindTrajectoryFixtures,
+} from "./sondermindTrajectories";
+import type {
+  ExternalMessage,
+  InputCaseResult,
+  OutputCaseResult,
+} from "./types";
 
 function argument(name: string) {
   const index = process.argv.indexOf(name);
@@ -29,6 +37,10 @@ function numberArgument(name: string, fallback: number) {
     throw new Error(`${name} must be a positive integer`);
   }
   return parsed;
+}
+
+function hasFlag(name: string) {
+  return process.argv.includes(name);
 }
 
 async function withRetry<T>(operation: () => Promise<T>) {
@@ -169,6 +181,131 @@ async function main() {
       "evaluation/mental-health/reports/sondermind-current.json",
     );
   const corpus = await loadSondermindCorpus(sourceRoot);
+  if (hasFlag("--trajectory")) {
+    const selected = selectSondermindTrajectoryFixtures(
+      corpus,
+      numberArgument("--trajectory-count", 107),
+    );
+    const startedAt = new Date().toISOString();
+    process.stdout.write(
+      `Running ${selected.length} pinned external trajectories without logging raw content.\n`,
+    );
+    const cases = await runPool(selected, concurrency, async (fixture) => {
+      const prior: ExternalMessage[] = [];
+      const turns = [];
+      for (const plan of planExternalTrajectoryTurns(fixture)) {
+        const human = fixture.messages[plan.humanMessageIndex];
+        const candidate =
+          plan.candidateMessageIndex === null
+            ? null
+            : fixture.messages[plan.candidateMessageIndex];
+        const turnStartedAt = Date.now();
+        try {
+          const assessed = await withRetry(() =>
+            assessMentalHealthInput(
+              transcript([
+                ...prior.filter((message) => message.role === "human"),
+                human,
+              ]),
+            ),
+          );
+          const route = deriveMentalHealthRoute(assessed.assessment);
+          const reviewed =
+            candidate?.role === "ai"
+              ? await withRetry(() =>
+                  reviewMentalHealthOutput({
+                    message: transcript([...prior, human]),
+                    candidate: candidate.content,
+                    route,
+                  }),
+                )
+              : null;
+          turns.push({
+            turn: plan.turn,
+            route,
+            abstain: assessed.assessment.abstain,
+            candidatePresent: candidate?.role === "ai",
+            candidateApproved: reviewed?.approved ?? null,
+            latencyMs: Date.now() - turnStartedAt,
+            error: null,
+          });
+        } catch (error) {
+          turns.push({
+            turn: plan.turn,
+            route: null,
+            abstain: null,
+            candidatePresent: candidate?.role === "ai",
+            candidateApproved: null,
+            latencyMs: Date.now() - turnStartedAt,
+            error: errorLabel(error),
+          });
+        }
+        prior.push(human);
+        if (candidate?.role === "ai") prior.push(candidate);
+      }
+      return {
+        id: fixture.id,
+        kind: fixture.kind,
+        category: fixture.category,
+        turns,
+      };
+    });
+    const trajectoryReportPath =
+      argument("--report") ??
+      path.join(
+        process.cwd(),
+        "evaluation/mental-health/reports/sondermind-trajectories-current.json",
+      );
+    const report = {
+      schemaVersion: 1,
+      publicSafe: true,
+      rawContentIncluded: false,
+      startedAt,
+      completedAt: new Date().toISOString(),
+      source: {
+        repository: sourceManifest.source,
+        commit: sourceManifest.commit,
+        inputSha256: sourceManifest.files.input.sha256,
+        outputSha256: sourceManifest.files.output.sha256,
+      },
+      system: {
+        policyVersion: MENTAL_HEALTH_POLICY_VERSION,
+        safetyModel: process.env.TOGETHER_SAFETY_MODEL ?? "Qwen/Qwen3.5-9B",
+        mode: "per-human-turn",
+      },
+      summary: {
+        trajectories: cases.length,
+        turns: cases.reduce(
+          (total, fixture) => total + fixture.turns.length,
+          0,
+        ),
+        providerErrors: cases.reduce(
+          (total, fixture) =>
+            total + fixture.turns.filter((turn) => turn.error !== null).length,
+          0,
+        ),
+        prematureClose: null,
+        correctionUptake: null,
+        contradiction: null,
+      },
+      limitations: [
+        "The external corpus supplies safety-route and candidate-review calibration, not receptionist goals or state-transition labels.",
+        "Premature close, correction uptake, contradiction, and resolution remain explicitly unmapped here and are gated by the application-owned 128-case suite.",
+        "No external prompt or response text is written to this report.",
+      ],
+      cases,
+    };
+    await mkdir(path.dirname(trajectoryReportPath), { recursive: true });
+    await writeFile(
+      trajectoryReportPath,
+      `${JSON.stringify(report, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+    process.stdout.write(
+      `Wrote content-free trajectory report to ${trajectoryReportPath}\n`,
+    );
+    return;
+  }
   const inputFixtures = corpus.input.slice(0, limit);
   const outputFixtures = corpus.output.slice(0, limit);
   const startedAt = new Date().toISOString();

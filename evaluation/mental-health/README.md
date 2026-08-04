@@ -15,6 +15,21 @@ TOGETHER_API_KEY=… pnpm eval:mental-health:sondermind \
   --source /absolute/path/to/sonder-guardrail-evals
 ```
 
+To replay a deterministic 107-ID (30.1%) sample one human turn at a time while
+keeping all external text in the local process only:
+
+```bash
+TOGETHER_API_KEY=… pnpm eval:mental-health:sondermind -- \
+  --source /absolute/path/to/sonder-guardrail-evals \
+  --trajectory --trajectory-count 107
+```
+
+The trajectory report records positional ID, category, turn, route, abstention,
+candidate presence/approval, latency, and provider error only. Because the
+upstream corpus has no receptionist-state labels, conversation contradiction,
+repair, premature close, and resolution stay explicitly `null`; those are
+release-gated by the application-owned suite below rather than guessed.
+
 The runner verifies both files by SHA-256 before reading them. Console progress
 contains counts only. The public JSON report contains aggregate metrics,
 categories, issue labels, model/policy provenance, and positional scenario IDs;
@@ -33,6 +48,31 @@ cannot hide a ruinous slice. The gate separates:
 The current report fails closed. A failed gate keeps the experience a synthetic
 engineering demonstration. Do not tune on the entire external corpus and then
 describe a rerun as independent evidence.
+
+## Run the conversation trajectory gate
+
+Issue #69 adds a separate deterministic gate for conversation state. It does
+not replace or improve the 255 input / 100 output guardrail scores above:
+
+```bash
+pnpm eval:mental-health:trajectories
+pnpm eval:mental-health:trajectories -- --details
+```
+
+The 128 application-owned synthetic trajectories comprise 107 distinct,
+evenly spaced content-free IDs from the pinned 355-case SonderMind report and
+seven methodology probes each for MindEval, HealthBench, and VERA-MH. No
+upstream prompt, response, clinical record, or benchmark example is copied.
+The detailed mode reports only IDs and per-turn facts: transition validity,
+contradiction, correction uptake, question alignment, constraint carryover,
+repeated questions, premature close, resolution/handoff, fallback use, latency,
+route status, and provider errors.
+
+This deterministic gate intentionally reports route as `not-run`, latency as
+zero, and fallback use as true. Provider quality, safety routing, and measured
+latency remain separate live and pinned-corpus checks; combining them into one
+score would conceal which layer failed. The methodology choices are documented
+in the repository-root `context.json` with primary-source links.
 
 ## Review workflow
 
