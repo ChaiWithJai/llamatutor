@@ -13,6 +13,32 @@
 	reverse_proxy 127.0.0.1:3101
 }
 
+{$LLAMATUTOR_VOICE_PRODUCTION_DOMAIN} {
+	@authorized header Authorization "Bearer {$VOICE_WORKER_SHARED_SECRET}"
+	handle @authorized {
+		handle_path /daily/* {
+			reverse_proxy 127.0.0.1:3202
+		}
+		handle {
+			reverse_proxy 127.0.0.1:3200
+		}
+	}
+	respond "Unauthorized" 401
+}
+
+{$LLAMATUTOR_VOICE_STAGING_DOMAIN} {
+	@authorized header Authorization "Bearer {$VOICE_WORKER_SHARED_SECRET}"
+	handle @authorized {
+		handle_path /daily/* {
+			reverse_proxy 127.0.0.1:3203
+		}
+		handle {
+			reverse_proxy 127.0.0.1:3201
+		}
+	}
+	respond "Unauthorized" 401
+}
+
 # During the edge-proxy migration, recreate writebook without host port 80/443,
 # expose its Puma port as 127.0.0.1:3080:3000, and preserve its data volume.
 {$WRITEBOOK_DOMAIN} {

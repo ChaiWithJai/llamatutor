@@ -9,6 +9,7 @@ export default defineConfig([
     "node_modules/**",
     "output/**",
     "todos/**",
+    "voice-worker/.venv/**",
     "next-env.d.ts",
   ]),
 ]);

@@ -42,6 +42,41 @@ if (!reflectionResponse.ok) {
   );
 }
 
+const voiceHealthResponse = await fetch(
+  new URL("/api/mental-health/voice-session", deploymentUrl),
+);
+if (!voiceHealthResponse.ok) {
+  throw new Error(
+    `Voice worker health check failed with HTTP ${voiceHealthResponse.status}.`,
+  );
+}
+const voiceHealth = await voiceHealthResponse.json();
+if (!voiceHealth.ready || !voiceHealth.reviewedBeforeSpoken) {
+  throw new Error(
+    "Voice worker did not report reviewed-before-spoken readiness.",
+  );
+}
+
+const voiceSessionResponse = await fetch(
+  new URL("/api/mental-health/voice-session", deploymentUrl),
+  {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ transport: "webrtc" }),
+  },
+);
+if (!voiceSessionResponse.ok) {
+  throw new Error(
+    `SmallWebRTC session smoke failed with HTTP ${voiceSessionResponse.status}.`,
+  );
+}
+const voiceSession = await voiceSessionResponse.json();
+if (!voiceSession.sessionId || !voiceSession.connectionUrl) {
+  throw new Error(
+    "SmallWebRTC session smoke returned no signaling capability.",
+  );
+}
+
 const drilldownResponse = await fetch(
   new URL("/api/drilldown", deploymentUrl),
   {

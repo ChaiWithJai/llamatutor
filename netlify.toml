@@ -79,3 +79,36 @@
     window_limit = 24
     window_size = 60
     aggregate_by = ["ip", "domain"]
+
+[[redirects]]
+  from = "/api/mental-health/voice-turn"
+  to = "/api/mental-health/voice-turn"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    window_limit = 24
+    window_size = 60
+    aggregate_by = ["ip", "domain"]
+
+[[redirects]]
+  from = "/api/mental-health/voice-session"
+  to = "/api/mental-health/voice-session"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    window_limit = 12
+    window_size = 60
+    aggregate_by = ["ip", "domain"]
+
+[[redirects]]
+  from = "/api/mental-health/voice-session/*"
+  to = "/api/mental-health/voice-session/:splat"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    window_limit = 120
+    window_size = 60
+    aggregate_by = ["ip", "domain"]

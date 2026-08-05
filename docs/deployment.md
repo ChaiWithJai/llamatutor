@@ -1,6 +1,6 @@
 # Llama Tutor deployment
 
-## Active recommendation: Netlify
+## Active split: Netlify web, DigitalOcean voice
 
 Production is served at `https://tutor.dharmicdata.org` on Netlify. This matches
 the existing `dharmicdata.org` and `shakti.dharmicdata.org` hosting pattern.
@@ -15,12 +15,21 @@ Netlify Identity handles learner accounts, and Netlify Database stores the
 server-scoped coaching loop described in
 `docs/adr/0002-option-b-netlify-identity-database.md`.
 
+The live voice pilot is a separate Pipecat service on DigitalOcean. Netlify
+creates sessions and reviews each completed caller turn; the worker handles
+WebRTC, transcription, and speech. It cannot speak unless Netlify returns
+`reviewed: true`. SmallWebRTC is the staging default, while the same image can
+join a private Daily room. Exa is deliberately absent from this path.
+
 Required Netlify environment variables:
 
 ```dotenv
 TOGETHER_API_KEY=
 EXA_API_KEY=
 WOLFRAM_ALPHA_APP_ID=
+VOICE_WORKER_URL=
+VOICE_WORKER_SHARED_SECRET=
+DAILY_API_KEY=
 ```
 
 Optional variables:
@@ -60,7 +69,8 @@ pnpm verify:deployment -- https://deploy-preview-123--dharmic-data-tutor.netlify
 ```
 
 The command fails if `/api/health` is unhealthy, if `/api/drilldown` reports
-that `WOLFRAM_ALPHA_APP_ID` is missing, or if a known computable query fails.
+that `WOLFRAM_ALPHA_APP_ID` is missing, if a known computable query fails, or
+if the voice control plane cannot health-check and start a WebRTC session.
 Then verify one source search, one initial lesson, sign-up/sign-in, one
 completed practice rep, resume after reload, data export, and data deletion on
 the deployed URL.
@@ -69,21 +79,48 @@ Database migrations live in `netlify/database/migrations`. Netlify applies
 them during deploy. Never put `NETLIFY_DB_URL`, Identity admin credentials, or
 provider keys in GitHub; Netlify injects them at runtime.
 
-## Could the DigitalOcean Droplet host it?
+## DigitalOcean voice pilot
+
+Observed on 2026-08-05:
+
+- `voice-staging.dharmicdata.org` terminates TLS in Caddy and requires the
+  server-to-server bearer credential.
+- The SmallWebRTC and Daily staging processes bind only to
+  `127.0.0.1:3201` and `127.0.0.1:3203`; each is limited to 768 MB RAM and
+  0.75 CPU. Caddy exposes the Daily process only under the authenticated
+  `/daily/` path.
+- SmallWebRTC uses Linux host networking for its ephemeral UDP media ports.
+  Its HTTP listener still binds only to loopback. Daily uses Docker bridge
+  networking.
+- SmallWebRTC live media and a real private Daily room/token startup both
+  passed from the same worker image. The final synthetic Chromium pass measured
+  4.160 seconds to first audio, 3.508 seconds from caller stop to the reviewed
+  reply, and 9 milliseconds to stop interrupted audio. A cold pass took 10.712
+  seconds to first audio, so latency tuning remains open.
+- Caddy now owns ports 80/443. Writebook remains healthy behind it on
+  `127.0.0.1:3080`, with a validated pre-migration archive under `/root`.
+
+The pilot is not a production promotion. Multi-turn trajectory evidence and a
+Daily browser call remain promotion gates in ADR 0006. Daily room creation
+works, but the account needs billing before a browser can join.
+Only the staging voice hostname exists in Caddy today. The production voice
+process stays on loopback until a production DNS name is assigned.
+
+## Could the DigitalOcean Droplet host the web app too?
 
 Yes, but it is the fallback rather than the preferred production target. Llama
 Tutor runs inference through Together AI, so the existing `writebook` Droplet's
 2 vCPU and 4 GB RAM can host two small Next.js containers. It should not host
 the model itself.
 
-The reasons not to use it for this launch are operational:
+The reasons not to move the web app there are operational:
 
-- `writebook` already owns ports 80 and 443.
+- Writebook and the voice pilot already share the host behind Caddy.
 - Tutor would share one host, disk, network path, and maintenance window with
   an unrelated production service.
 - The Droplet currently has no Cloud Firewall, backups, monitoring, or swap.
-- TLS, reverse-proxy changes, rollback, and staging isolation would all become
-  our responsibility.
+- TLS, reverse-proxy changes, rollback, and staging isolation are our
+  responsibility on this host.
 - Netlify already manages the parent domain and sibling Dharmic Data sites.
 
 The Docker, Compose, Caddy, and health-checked deployment files remain in this
@@ -91,19 +128,19 @@ repository for portability or a later migration.
 
 ## Droplet fallback
 
-### Observed Droplet state (2026-07-29)
+### Observed Droplet state (2026-08-05)
 
 - Droplet: `writebook`, NYC1, Ubuntu 24.04
 - Capacity: 2 vCPU, 4 GB RAM, 25 GB disk
 - Available memory: approximately 2.3 GB
-- Root disk after cleanup: 36% used, approximately 15 GB free
+- Root disk after the voice image build: approximately 58% used, 9.8 GB free
 - Unused Docker build cache reclaimed during validation: 10.49 GB
-- Existing workload: one `writebook` container, approximately 409 MB RAM
+- Existing workloads: Writebook plus the staging voice worker
 - No swap
 - UFW inactive
 - No DigitalOcean Cloud Firewall attached
 - DigitalOcean backups and monitoring are not enabled
-- `writebook` directly owns public ports 80 and 443
+- Caddy owns public ports 80 and 443; workloads use loopback bindings
 
 Before using the Droplet:
 
@@ -124,6 +161,10 @@ Before using the Droplet:
 | writebook              | `127.0.0.1:3080` | Existing writebook hostname            |
 | Llama Tutor production | `127.0.0.1:3100` | Production hostname                    |
 | Llama Tutor staging    | `127.0.0.1:3101` | Staging hostname, basic-auth protected |
+| Voice production       | `127.0.0.1:3200` | Reserved SmallWebRTC process           |
+| Voice staging          | `127.0.0.1:3201` | Authenticated SmallWebRTC process      |
+| Daily production       | `127.0.0.1:3202` | Reserved `/daily/` process             |
+| Daily staging          | `127.0.0.1:3203` | Authenticated `/daily/` process        |
 
 The application containers never bind directly to the public interface. Caddy
 terminates TLS and routes by hostname.
