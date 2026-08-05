@@ -103,6 +103,8 @@ Observed on 2026-08-05:
 The pilot is not a production promotion. Multi-turn trajectory evidence and a
 Daily browser call remain promotion gates in ADR 0006. Daily room creation
 works, but the account needs billing before a browser can join.
+Only the staging voice hostname exists in Caddy today. The production voice
+process stays on loopback until a production DNS name is assigned.
 
 ## Could the DigitalOcean Droplet host the web app too?
 

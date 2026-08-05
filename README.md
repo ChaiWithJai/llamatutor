@@ -296,6 +296,7 @@ Current demo limits:
 - The web app and staging voice services are live.
 - Daily can create a private room and token. The Daily account still needs billing before a browser can join.
 - SmallWebRTC carried reviewed replies through the Droplet. The final synthetic Chromium pass measured 4.160 seconds to first audio, 3.508 seconds from caller stop to the reviewed reply, and 9 milliseconds to stop interrupted audio. A cold pass took 10.712 seconds to first audio, so latency tuning remains open.
+- Only the staging voice hostname is public. Production voice stays on Droplet loopback until its DNS name is assigned.
 - The demo is web only. It does not use phone numbers or save call text.
 
 Rollback:
