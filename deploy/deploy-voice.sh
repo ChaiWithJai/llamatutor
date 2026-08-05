@@ -15,11 +15,11 @@ case "${target}" in
     health_ports=("3201" "3203")
     services=("voice-staging" "voice-daily-staging")
     ;;
-  *) echo "Usage: $0 <staging|production> <ghcr-image:tag>" >&2; exit 2 ;;
+  *) echo "Usage: $0 <staging|production> <ghcr-image@sha256:digest>" >&2; exit 2 ;;
 esac
 
-if [[ ! "${image_ref}" =~ ^ghcr\.io/[A-Za-z0-9._/-]+:[A-Za-z0-9._-]+$ ]]; then
-  echo "The image must be a tagged ghcr.io reference." >&2
+if [[ ! "${image_ref}" =~ ^ghcr\.io/[A-Za-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]]; then
+  echo "The image must be a pinned ghcr.io digest." >&2
   exit 2
 fi
 

@@ -190,6 +190,7 @@ Copy `.example.env` to `.env` for local work. Never commit a value.
 Netlify supplies its database and Identity settings. Provider keys stay on Netlify or the Droplet. `VOICE_WORKER_SHARED_SECRET` and `DAILY_API_KEY` must match in Netlify and the matching Droplet environment. GitHub stores deploy access only.
 
 GitHub has `staging` and approval-gated `production` environments. They contain deploy access only.
+`DROPLET_SSH_KEY` is a dedicated CI key, not a maintainer key.
 
 ## Tests
 
@@ -261,13 +262,13 @@ Read [ADR 0002](./docs/adr/0002-option-b-netlify-identity-database.md) for the f
 
 ## CI, deploy, release
 
-| Part   | Current path                                                                                                         |
-| ------ | -------------------------------------------------------------------------------------------------------------------- |
-| Web    | Netlify builds every pull request. `main` deploys production.                                                        |
-| Data   | Netlify gives each preview its own database branch and applies migrations during deploy.                             |
-| Voice  | GitHub builds one Pipecat image tagged with the commit SHA. DigitalOcean runs SmallWebRTC and Daily from that image. |
-| Review | Netlify reviews each final transcript. The worker speaks only approved text.                                         |
-| Search | Exa runs on Netlify. Voice does not call Exa.                                                                        |
+| Part   | Current path                                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------------------------------- |
+| Web    | Netlify builds every pull request. `main` deploys production.                                                       |
+| Data   | Netlify gives each preview its own database branch and applies migrations during deploy.                            |
+| Voice  | GitHub builds one Pipecat image per commit and deploys its digest. DigitalOcean runs SmallWebRTC and Daily from it. |
+| Review | Netlify reviews each final transcript. The worker speaks only approved text.                                        |
+| Search | Exa runs on Netlify. Voice does not call Exa.                                                                       |
 
 The GitHub quality gate runs lint, unit tests, the production build, voice tests, the voice image build, and browser tests. It uses no provider secrets. Netlify adds the deploy preview check.
 
@@ -288,14 +289,14 @@ Release voice:
 1. Run the voice tests and image build above.
 2. Run `Deploy voice worker` for `staging` on the chosen commit.
 3. Test one reviewed reply, one blocked reply, one interruption, and health limits.
-4. Run the same commit for `production` after approval.
+4. Run the same commit for `production` after approval. The workflow reuses the staging digest.
 5. Test production through Netlify.
 
 Current demo limits:
 
 - The web app and staging voice services are live.
 - Daily can create a private room and token. The Daily account still needs billing before a browser can join.
-- SmallWebRTC carried reviewed replies through the Droplet. The final synthetic Chromium pass measured 4.160 seconds to first audio, 3.508 seconds from caller stop to the reviewed reply, and 9 milliseconds to stop interrupted audio. A cold pass took 10.712 seconds to first audio, so latency tuning remains open.
+- SmallWebRTC carried reviewed replies through production. Synthetic Chromium measured 4.646 seconds to first audio, 5.451 seconds from caller stop to the reviewed reply, and 11 milliseconds to stop interrupted audio. A cold preview pass took 10.712 seconds to first audio, so latency tuning remains open.
 - Only the staging voice hostname is public. Production voice stays on Droplet loopback until its DNS name is assigned.
 - The demo is web only. It does not use phone numbers or save call text.
 

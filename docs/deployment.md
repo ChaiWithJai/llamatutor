@@ -93,9 +93,9 @@ Observed on 2026-08-05:
   Its HTTP listener still binds only to loopback. Daily uses Docker bridge
   networking.
 - SmallWebRTC live media and a real private Daily room/token startup both
-  passed from the same worker image. The final synthetic Chromium pass measured
-  4.160 seconds to first audio, 3.508 seconds from caller stop to the reviewed
-  reply, and 9 milliseconds to stop interrupted audio. A cold pass took 10.712
+  passed. The production synthetic Chromium pass measured 4.646 seconds to
+  first audio, 5.451 seconds from caller stop to the reviewed reply, and 11
+  milliseconds to stop interrupted audio. A cold preview pass took 10.712
   seconds to first audio, so latency tuning remains open.
 - Caddy now owns ports 80/443. Writebook remains healthy behind it on
   `127.0.0.1:3080`, with a validated pre-migration archive under `/root`.
@@ -219,9 +219,14 @@ for the production environment. Add these secrets to both:
 - `DROPLET_SSH_KEY`
 - `DROPLET_KNOWN_HOSTS`
 
+Use a dedicated, passphrase-free CI key for `DROPLET_SSH_KEY`; do not copy a
+maintainer key. Prefix its public entry in the Droplet's `authorized_keys` with
+`restrict`. Remove that entry when the workflow is retired or the key rotates.
+
 The Droplet workflow is manual-only while Netlify is the active host. Select
-`staging` or `production` and choose the commit to run. It builds one immutable
-image and promotes that image through the health-checked deployment script.
+`staging` or `production` and choose the commit to run. It builds a SHA tag only
+when absent, resolves its registry digest, and deploys that digest. Production
+therefore reuses the exact staging image.
 
 The deployment retains the previous local image tag. If `/api/health` does not
 become healthy within 60 seconds, the script restores the previous container.
