@@ -66,50 +66,58 @@ The first release stays deliberately small. It does not include grading, social 
 ```mermaid
 flowchart LR
     Learner["Learner in the browser"]
-    Sources["Source route"]
-    Chat["Chat route"]
-    Coach["Coaching function"]
+    Netlify["Netlify web and review plane"]
+    Worker["DigitalOcean Pipecat worker"]
+    Daily["Daily media"]
     Exa["Exa search"]
     Together["Together AI"]
     Identity["Netlify Identity"]
     Database["Netlify Database"]
 
-    Learner --> Sources --> Exa
-    Learner --> Chat --> Together
-    Learner --> Coach
-    Coach --> Identity
-    Coach --> Database
+    Learner --> Netlify
+    Netlify --> Exa
+    Netlify --> Together
+    Netlify --> Identity
+    Netlify --> Database
+    Learner --> Daily --> Worker
+    Learner --> Worker
+    Worker --> Together
+    Worker -->|final transcript| Netlify
+    Netlify -->|reviewed text only| Worker
 ```
 
 The browser never supplies a learner ID to a database query. The coaching function reads the authenticated Netlify Identity user and uses that ID for every profile, goal, rep, and session query.
 
 ### Server endpoints
 
-| Method and path | Purpose |
-| --- | --- |
-| `POST /api/getSources` | Finds and returns source pages for a topic |
-| `POST /api/getChat` | Streams a lesson or coaching response |
-| `GET /api/coach` | Returns the signed in learner's saved coaching state |
-| `POST /api/coach` | Starts goals and saves practice reps |
-| `DELETE /api/coach` | Deletes the signed in learner's coaching data |
-| `GET /api/health` | Reports whether the application process is healthy |
+| Method and path                             | Purpose                                              |
+| ------------------------------------------- | ---------------------------------------------------- |
+| `POST /api/getSources`                      | Finds and returns source pages for a topic           |
+| `POST /api/getChat`                         | Streams a lesson or coaching response                |
+| `GET /api/coach`                            | Returns the signed in learner's saved coaching state |
+| `POST /api/coach`                           | Starts goals and saves practice reps                 |
+| `DELETE /api/coach`                         | Deletes the signed in learner's coaching data        |
+| `GET /api/health`                           | Reports whether the application process is healthy   |
+| `GET/POST /api/mental-health/voice-session` | Checks or starts a voice session                     |
+| `POST /api/mental-health/voice-turn`        | Reviews one worker transcript before speech          |
 
 ## Technology
 
-| Part | Service or library |
-| --- | --- |
-| Web application | Next.js 16, React 18, TypeScript, and Tailwind CSS |
-| Language model access | Together AI |
-| Source search | Exa |
-| Learner accounts | Netlify Identity |
-| Learner data | Netlify Database with Postgres |
-| Input validation | Zod |
-| Rate limits | Netlify edge limits and optional Upstash Redis limits |
-| Analytics | Plausible |
-| Optional model tracing | Helicone |
-| Unit tests | Vitest |
-| Browser tests | Playwright |
-| Hosting and previews | Netlify |
+| Part                   | Service or library                                    |
+| ---------------------- | ----------------------------------------------------- |
+| Web application        | Next.js 16, React 18, TypeScript, and Tailwind CSS    |
+| Language model access  | Together AI                                           |
+| Source search          | Exa                                                   |
+| Learner accounts       | Netlify Identity                                      |
+| Learner data           | Netlify Database with Postgres                        |
+| Input validation       | Zod                                                   |
+| Rate limits            | Netlify edge limits and optional Upstash Redis limits |
+| Analytics              | Plausible                                             |
+| Optional model tracing | Helicone                                              |
+| Unit tests             | Vitest                                                |
+| Browser tests          | Playwright                                            |
+| Hosting and previews   | Netlify                                               |
+| Voice media            | Pipecat on DigitalOcean; SmallWebRTC or Daily         |
 
 ## Run it locally
 
@@ -169,16 +177,27 @@ Open `http://localhost:3000`. The `/api/coach` contract is available, but accoun
 
 ## Environment variables
 
-| Variable | Needed | Purpose |
-| --- | --- | --- |
-| `TOGETHER_API_KEY` | Yes | Streams lesson and coaching responses from Together AI |
-| `TOGETHER_MULTIMODAL_MODEL` | After provisioning vision | Model or dedicated endpoint configured for image requests |
-| `EXA_API_KEY` | Yes | Finds source pages for each topic |
-| `HELICONE_API_KEY` | No | Sends model requests through Helicone for tracing |
-| `UPSTASH_REDIS_REST_URL` | Public deployments | Stores request limit state |
-| `UPSTASH_REDIS_REST_TOKEN` | Public deployments | Authenticates the Upstash request limit client |
+| Variable                     | Needed                    | Purpose                                                   |
+| ---------------------------- | ------------------------- | --------------------------------------------------------- |
+| `TOGETHER_API_KEY`           | Yes                       | Streams lesson and coaching responses from Together AI    |
+| `TOGETHER_MULTIMODAL_MODEL`  | After provisioning vision | Model or dedicated endpoint configured for image requests |
+| `EXA_API_KEY`                | Yes                       | Finds source pages for each topic                         |
+| `HELICONE_API_KEY`           | No                        | Sends model requests through Helicone for tracing         |
+| `UPSTASH_REDIS_REST_URL`     | Public deployments        | Stores request limit state                                |
+| `UPSTASH_REDIS_REST_TOKEN`   | Public deployments        | Authenticates the Upstash request limit client            |
+| `VOICE_WORKER_URL`           | Voice demo                | Server-only worker URL                                    |
+| `VOICE_WORKER_SHARED_SECRET` | Voice demo                | Authenticates Netlify and the worker                      |
+| `DAILY_API_KEY`              | Daily mode                | Creates private rooms and short-lived tokens              |
 
 Netlify supplies `NETLIFY_DATABASE_URL` and Identity settings at runtime. Do not commit these values or set one shared database URL for deploy previews.
+
+### Secret ownership
+
+- Local: `.env`; never commit it.
+- Netlify: provider keys and `VOICE_WORKER_SHARED_SECRET` are secret runtime variables. `VOICE_WORKER_URL` is not secret.
+- DigitalOcean: `/opt/llamatutor/.env.voice.*`, owned by root with mode `0600`.
+- GitHub environments: droplet host, user, SSH key, and known-hosts only. Provider keys stay on Netlify or the droplet.
+- Browser: receives a short-lived room token, never a Daily, Together, or Exa account key.
 
 ## Tests
 
@@ -191,14 +210,16 @@ pnpm test:e2e
 
 The repository includes these test layers:
 
-| Command | What it checks |
-| --- | --- |
-| `pnpm lint` | TypeScript and React code quality rules |
-| `pnpm test:unit` | Coaching rules and model request behavior |
-| `pnpm test:integration` | Postgres inserts and relationships inside a transaction that is rolled back |
-| `pnpm test:e2e` | Public lesson, failure, long session, and mobile browser journeys |
-| `pnpm check` | Lint, unit tests, and the production Next.js build |
-| `pnpm dlx netlify-cli@27.0.1 build` | The full Netlify build, functions, and database migration setup |
+| Command                                                | What it checks                                                              |
+| ------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `pnpm lint`                                            | TypeScript and React code quality rules                                     |
+| `pnpm test:unit`                                       | Coaching rules and model request behavior                                   |
+| `pnpm test:integration`                                | Postgres inserts and relationships inside a transaction that is rolled back |
+| `pnpm test:e2e`                                        | Public lesson, failure, long session, and mobile browser journeys           |
+| `pnpm check`                                           | Lint, unit tests, and the production Next.js build                          |
+| `pnpm dlx netlify-cli@27.0.1 build`                    | The full Netlify build, functions, and database migration setup             |
+| `docker build -f voice-worker/Dockerfile voice-worker` | Locked Pipecat worker image                                                 |
+| `pnpm verify:deployment -- URL`                        | Live web, provider, voice health, and WebRTC startup                        |
 
 The database integration test needs a local `NETLIFY_DATABASE_URL`. Run the database status command, copy the local Postgres URL it prints, and pass it only to the test process.
 
@@ -237,18 +258,31 @@ Netlify Identity owns account authentication. Netlify Database stores learner pr
 
 Read [ADR 0002](./docs/adr/0002-option-b-netlify-identity-database.md) for the full identity, data, and product decision.
 
-## Deployment
+## CI, deploy, release
 
-Netlify is the active host.
+Today:
 
-- A pull request runs the GitHub quality gate and gets a Netlify preview with its own database branch.
-- A merge to `main` deploys the production site at [tutor.dharmicdata.org](https://tutor.dharmicdata.org).
-- Netlify applies pending database migrations during the deploy.
-- The files in `deploy/` run the DigitalOcean voice pilot and retain a manual web fallback with health checks and rollback.
+- Web: Netlify. Pull requests get isolated previews. `main` deploys [production](https://tutor.dharmicdata.org).
+- Voice: one locked Pipecat image on DigitalOcean. SmallWebRTC and Daily run as separate, loopback-only processes behind authenticated Caddy routes.
+- Policy: Netlify owns review. The worker cannot speak unchecked model text. Exa is not in the voice path.
 
-Text request path: browser → Netlify/Next → Together, Exa, Wolfram, or Netlify Database. Voice request path: browser → Netlify control plane → authenticated Pipecat worker on DigitalOcean. Final transcripts return to the Netlify guard; only a reviewed reply may reach speech. The staging worker supports self-hosted SmallWebRTC and Daily from the same image. Provider keys stay server-side; Exa is not in the live voice path. See ADR 0006 for the promotion gates.
+Release:
 
-Read [the deployment guide](./docs/deployment.md) for environment setup, release checks, and the DigitalOcean fallback.
+1. Branch from current `main`; add the smallest tested change.
+2. Run `pnpm check && pnpm test:e2e` and the voice image check when relevant.
+3. Open a ready PR. GitHub CI and the Netlify preview must pass.
+4. Run `pnpm verify:deployment -- PREVIEW_URL`.
+5. Merge. Netlify deploys web production and applies database migrations.
+6. Run `pnpm verify:deployment -- https://tutor.dharmicdata.org`.
+7. For voice changes, dispatch `Deploy voice worker`, choose `staging`, collect live audio evidence, then promote the same image to `production` with approval.
+
+Rollback:
+
+- Netlify: restore the previous successful deploy.
+- Voice: `deploy/deploy-voice.sh` retains and restores the previous image if either transport fails health.
+- Caddy/Writebook: use the validated root backup and migration rollback in `deploy/migrate-writebook-to-caddy.sh`.
+
+Full bootstrap, ports, health checks, and recovery: [deployment guide](./docs/deployment.md). Architecture decision: [ADR 0006](./docs/adr/0006-adopt-daily-pipecat-streaming-voice.md).
 
 ## Contributing
 

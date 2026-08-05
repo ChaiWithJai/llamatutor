@@ -46,6 +46,8 @@ describe("voice session control plane", () => {
     await expect(response.json()).resolves.toEqual({
       sessionId: "session-1",
       iceConfig: {},
+      connectionUrl:
+        "http://localhost/api/mental-health/voice-session/session-1/api/offer",
     });
     const body = JSON.parse(
       String((vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit).body),

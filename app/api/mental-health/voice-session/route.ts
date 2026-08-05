@@ -75,7 +75,18 @@ export async function POST(request: Request) {
     const payload = await response
       .json()
       .catch(() => ({ error: "Invalid worker response." }));
-    return NextResponse.json(payload, {
+    const publicPayload =
+      parsed.data.transport === "webrtc" &&
+      typeof payload.sessionId === "string"
+        ? {
+            ...payload,
+            connectionUrl: new URL(
+              `/api/mental-health/voice-session/${payload.sessionId}/api/offer`,
+              request.url,
+            ).toString(),
+          }
+        : payload;
+    return NextResponse.json(publicPayload, {
       status: response.status,
       headers: { "Cache-Control": "private, no-store, max-age=0" },
     });

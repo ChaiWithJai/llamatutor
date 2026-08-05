@@ -71,8 +71,10 @@ if (!voiceSessionResponse.ok) {
   );
 }
 const voiceSession = await voiceSessionResponse.json();
-if (!voiceSession.sessionId) {
-  throw new Error("SmallWebRTC session smoke returned no session ID.");
+if (!voiceSession.sessionId || !voiceSession.connectionUrl) {
+  throw new Error(
+    "SmallWebRTC session smoke returned no signaling capability.",
+  );
 }
 
 const drilldownResponse = await fetch(
