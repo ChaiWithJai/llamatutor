@@ -175,29 +175,21 @@ pnpm dev
 
 Open `http://localhost:3000`. The `/api/coach` contract is available, but account persistence still needs Netlify Identity and Database.
 
-## Environment variables
+## Secrets and settings
 
-| Variable                     | Needed                    | Purpose                                                   |
-| ---------------------------- | ------------------------- | --------------------------------------------------------- |
-| `TOGETHER_API_KEY`           | Yes                       | Streams lesson and coaching responses from Together AI    |
-| `TOGETHER_MULTIMODAL_MODEL`  | After provisioning vision | Model or dedicated endpoint configured for image requests |
-| `EXA_API_KEY`                | Yes                       | Finds source pages for each topic                         |
-| `HELICONE_API_KEY`           | No                        | Sends model requests through Helicone for tracing         |
-| `UPSTASH_REDIS_REST_URL`     | Public deployments        | Stores request limit state                                |
-| `UPSTASH_REDIS_REST_TOKEN`   | Public deployments        | Authenticates the Upstash request limit client            |
-| `VOICE_WORKER_URL`           | Voice demo                | Server-only worker URL                                    |
-| `VOICE_WORKER_SHARED_SECRET` | Voice demo                | Authenticates Netlify and the worker                      |
-| `DAILY_API_KEY`              | Daily mode                | Creates private rooms and short-lived tokens              |
+Copy `.example.env` to `.env` for local work. Never commit a value.
 
-Netlify supplies `NETLIFY_DATABASE_URL` and Identity settings at runtime. Do not commit these values or set one shared database URL for deploy previews.
+| Store                                          | Names                                                                                                                               |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Local `.env`                                   | `TOGETHER_API_KEY`, `EXA_API_KEY`, and feature settings                                                                             |
+| Netlify                                        | `TOGETHER_API_KEY`, `EXA_API_KEY`, `WOLFRAM_ALPHA_APP_ID`, `VOICE_WORKER_URL`, `VOICE_WORKER_SHARED_SECRET`, and `DAILY_API_KEY`    |
+| DigitalOcean `/opt/llamatutor/.env.voice.*`    | `TOGETHER_API_KEY`, `VOICE_CONTROL_URL`, `VOICE_WORKER_SHARED_SECRET`, `DAILY_API_KEY`, model names, transport, and allowed origins |
+| GitHub `staging` and `production` environments | `DROPLET_HOST`, `DROPLET_USER`, `DROPLET_SSH_KEY`, and `DROPLET_KNOWN_HOSTS`                                                        |
+| Browser                                        | A short lived Daily room token only                                                                                                 |
 
-### Secret ownership
+Netlify supplies its database and Identity settings. Provider keys stay on Netlify or the Droplet. `VOICE_WORKER_SHARED_SECRET` and `DAILY_API_KEY` must match in Netlify and the matching Droplet environment. GitHub stores deploy access only.
 
-- Local: `.env`; never commit it.
-- Netlify: provider keys and `VOICE_WORKER_SHARED_SECRET` are secret runtime variables. `VOICE_WORKER_URL` is not secret.
-- DigitalOcean: `/opt/llamatutor/.env.voice.*`, owned by root with mode `0600`.
-- GitHub environments: droplet host, user, SSH key, and known-hosts only. Provider keys stay on Netlify or the droplet.
-- Browser: receives a short-lived room token, never a Daily, Together, or Exa account key.
+The repository does not yet have the `staging` and `production` GitHub environments. Create them before the first workflow deploy. Require approval for `production`.
 
 ## Tests
 
@@ -220,6 +212,15 @@ The repository includes these test layers:
 | `pnpm dlx netlify-cli@27.0.1 build`                    | The full Netlify build, functions, and database migration setup             |
 | `docker build -f voice-worker/Dockerfile voice-worker` | Locked Pipecat worker image                                                 |
 | `pnpm verify:deployment -- URL`                        | Live web, provider, voice health, and WebRTC startup                        |
+
+Test the voice code before building its image.
+
+```bash
+voice_worker_dir="$PWD/voice-worker"
+uv sync --frozen --directory "$voice_worker_dir"
+(cd /tmp && PYTHONPATH="$voice_worker_dir" "$voice_worker_dir/.venv/bin/python" -P -m unittest discover -v -s "$voice_worker_dir" -p 'test_*.py')
+docker build -f voice-worker/Dockerfile voice-worker
+```
 
 The database integration test needs a local `NETLIFY_DATABASE_URL`. Run the database status command, copy the local Postgres URL it prints, and pass it only to the test process.
 
@@ -260,27 +261,46 @@ Read [ADR 0002](./docs/adr/0002-option-b-netlify-identity-database.md) for the f
 
 ## CI, deploy, release
 
-Today:
+| Part   | Current path                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------------- |
+| Web    | Netlify builds every pull request. `main` deploys production.                                                        |
+| Data   | Netlify gives each preview its own database branch and applies migrations during deploy.                             |
+| Voice  | GitHub builds one Pipecat image tagged with the commit SHA. DigitalOcean runs SmallWebRTC and Daily from that image. |
+| Review | Netlify reviews each final transcript. The worker speaks only approved text.                                         |
+| Search | Exa runs on Netlify. Voice does not call Exa.                                                                        |
 
-- Web: Netlify. Pull requests get isolated previews. `main` deploys [production](https://tutor.dharmicdata.org).
-- Voice: one locked Pipecat image on DigitalOcean. SmallWebRTC and Daily run as separate, loopback-only processes behind authenticated Caddy routes.
-- Policy: Netlify owns review. The worker cannot speak unchecked model text. Exa is not in the voice path.
+The GitHub quality gate runs lint, unit tests, the production build, voice tests, the voice image build, and browser tests. It uses no provider secrets. Netlify adds the deploy preview check.
 
-Release:
+Release web:
 
-1. Branch from current `main`; add the smallest tested change.
-2. Run `pnpm check && pnpm test:e2e` and the voice image check when relevant.
-3. Open a ready PR. GitHub CI and the Netlify preview must pass.
-4. Run `pnpm verify:deployment -- PREVIEW_URL`.
-5. Merge. Netlify deploys web production and applies database migrations.
-6. Run `pnpm verify:deployment -- https://tutor.dharmicdata.org`.
-7. For voice changes, dispatch `Deploy voice worker`, choose `staging`, collect live audio evidence, then promote the same image to `production` with approval.
+1. Branch from current `main`.
+2. Run `pnpm check && pnpm test:e2e`.
+3. Open a ready pull request.
+4. Wait for GitHub and Netlify to pass.
+5. Run `pnpm verify:deployment -- PREVIEW_URL`.
+6. Merge.
+7. Run `pnpm verify:deployment -- https://tutor.dharmicdata.org`.
+
+Release voice:
+
+1. Run the voice tests and image build above.
+2. Run `Deploy voice worker` for `staging` on the chosen commit.
+3. Test one reviewed reply, one blocked reply, one interruption, and health limits.
+4. Run the same commit for `production` after approval.
+5. Test production through Netlify.
+
+Current demo limits:
+
+- The web app and staging voice services are live.
+- Daily can create a private room and token. The Daily account still needs billing before a browser can join.
+- SmallWebRTC can start a session. Live media through the Droplet is still a release check.
+- The demo is web only. It does not use phone numbers or save call text.
 
 Rollback:
 
-- Netlify: restore the previous successful deploy.
-- Voice: `deploy/deploy-voice.sh` retains and restores the previous image if either transport fails health.
-- Caddy/Writebook: use the validated root backup and migration rollback in `deploy/migrate-writebook-to-caddy.sh`.
+- Restore the last successful Netlify deploy for web.
+- The voice script restores the last local image when either process fails health.
+- The Caddy migration script restores the saved Writebook route and container.
 
 Full bootstrap, ports, health checks, and recovery: [deployment guide](./docs/deployment.md). Architecture decision: [ADR 0006](./docs/adr/0006-adopt-daily-pipecat-streaming-voice.md).
 
