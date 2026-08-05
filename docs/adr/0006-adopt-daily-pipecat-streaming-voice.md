@@ -217,14 +217,14 @@ history, and bounded state to the authenticated control plane, and speech is
 released only after a `reviewed: true` response. The worker binds to loopback
 behind Caddy, and provider credentials never enter browser responses.
 
-A synthetic Chromium call through the deploy preview, Caddy, Pipecat, Together
+A synthetic Chromium call through production Netlify, Caddy, Pipecat, Together
 STT/TTS, and the Netlify review route measured:
 
-- 4.160 seconds from connection to first audio
-- 3.508 seconds from caller stop to the reviewed reply
-- 9 milliseconds from caller speech to interrupted audio stopping
+- 4.646 seconds from connection to first audio
+- 5.451 seconds from caller stop to the reviewed reply
+- 11 milliseconds from caller speech to interrupted audio stopping
 
-A separate cold pass took 10.712 seconds to first audio. The transport and
+A separate cold preview pass took 10.712 seconds to first audio. The transport and
 interruption behavior are proven; latency is not yet at the target benchmark.
 
 Daily room and token creation also passed without exposing its API key. A Daily
