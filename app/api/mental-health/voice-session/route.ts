@@ -80,10 +80,7 @@ export async function POST(request: Request) {
       typeof payload.sessionId === "string"
         ? {
             ...payload,
-            connectionUrl: new URL(
-              `/api/mental-health/voice-session/${payload.sessionId}/api/offer`,
-              request.url,
-            ).toString(),
+            connectionUrl: `/api/mental-health/voice-session/${payload.sessionId}/api/offer`,
           }
         : payload;
     return NextResponse.json(publicPayload, {
