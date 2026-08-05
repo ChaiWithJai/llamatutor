@@ -79,6 +79,43 @@ guessing the caller's category before it is allowed to speak.
 | Conversation layer | Enum + cascade + scripted copy (compounding complexity) | Generate-then-guard (complexity deleted, not managed) |
 | Infra | Serverless only | Existing droplet path (pilot), Daily-hosted media |
 
+### Research reconciliation
+
+A dedicated research pass
+(`docs/research/voice-ai-streaming-architecture-research.md`) sharpened three
+facts this ADR must not blur:
+
+1. **Pipecat's default posture conflicts with our safety gate.** Out of the
+   box, Pipecat streams LLM tokens into TTS at sentence granularity for
+   latency. No first-party moderation/review processor ships with it. A
+   compliant design therefore deliberately does *not* stream the response
+   leg: the guard layer buffers each utterance, reviews it, and only then
+   releases it to TTS. Consequence: our realistic first-audio latency sits
+   above the 600–1,200 ms industry-typical row — the streaming wins we
+   actually bank are on the input side (VAD turn detection, streaming STT,
+   no per-turn HTTP round trips) plus barge-in. The pilot exists to measure
+   the honest number.
+2. **Unit economics favor REST at today's volume.** At 100–1,000 calls/week,
+   the current architecture runs ~$0.10–0.45/call with zero fixed infra;
+   Daily/Pipecat runs ~$0.15–0.60/call plus a $20–150/month fixed hosting
+   floor. Streaming wins economically only at much higher volume. This ADR
+   therefore adopts Daily/Pipecat on **capability grounds** — barge-in,
+   fluid turn-taking, and native human-in-the-loop (a staff member can join
+   the Daily room, making "a practice staff member would need to continue
+   from here" operationally real instead of scripted copy) — not on cost.
+3. **Boardy.ai is a positioning comparable, not an architecture reference.**
+   Public information is thin (OpenAI + Anthropic confirmed via privacy
+   policy; no disclosed voice stack, latency, or safety documentation).
+
+The research pass, run before this decision inverted, recommended staying
+REST until volume or a hard live-takeover requirement forced the move. The
+decision owner overrides that timing on product-direction grounds — the
+demo's differentiator is conversational fluidity, and the simplification is
+prerequisite work either way — while adopting the research's structural
+design constraint wholesale: the response leg stays buffer-then-review, and
+the pre-TTS review processor is built and proven as its own workstream
+(issue #75) before any transport migration.
+
 ## Decision
 
 Adopt Daily + Pipecat as the target voice architecture. Reach it through
