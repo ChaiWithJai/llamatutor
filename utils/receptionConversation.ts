@@ -9,6 +9,7 @@ export const receptionConversationStateSchema = z.object({
     "billing",
     "insurance",
     "procedure",
+    "emotional_support",
     "other",
   ]),
   requestedService: z.enum(["appointment", "procedure"]).nullable(),
@@ -74,6 +75,17 @@ function inferIntent(
   text: string,
   previous: ReceptionConversationState,
 ): Pick<ReceptionConversationState, "intent" | "requestedService"> {
+  // A caller can change the job without using scheduling vocabulary. Keep this
+  // branch before the scheduling cascade so emotional disclosure cannot inherit
+  // an earlier or default scheduling frame.
+  if (
+    contains(
+      text,
+      /talk (?:everything|it all|this) out|talk through .*head|happening in my head|need to talk|someone to talk to|emotional support|feel(?:ing)? overwhelmed/,
+    )
+  ) {
+    return { intent: "emotional_support", requestedService: null };
+  }
   if (contains(text, /surgery|procedure|operation/)) {
     return { intent: "procedure", requestedService: "procedure" };
   }
@@ -194,7 +206,12 @@ export function transitionReceptionConversation(
     closeReason: null,
   };
 
-  const needsHuman = ["procedure", "billing", "insurance"].includes(
+  const needsHuman = [
+    "procedure",
+    "billing",
+    "insurance",
+    "emotional_support",
+  ].includes(
     next.intent,
   );
   if (objectsToClose || (options.forceClose && !callerEnded)) {
@@ -216,6 +233,11 @@ export function transitionReceptionConversation(
       ...next,
       unresolvedGoal: true,
       nextAction: "handoff",
+      closeReason:
+        next.intent === "emotional_support" &&
+        previous.intent === "emotional_support"
+          ? "bounded_handoff"
+          : null,
     };
   } else if (next.acceptedSlot) {
     next = {
@@ -311,6 +333,11 @@ export function reviewedReceptionistReply(
     }
     if (state.intent === "billing" || state.intent === "insurance") {
       return "I can’t confirm billing or insurance details in this demonstration. A practice staff member would need to review that with you. Nothing is booked or saved. What detail should I pass along?";
+    }
+    if (state.intent === "emotional_support") {
+      return state.closeReason === "bounded_handoff"
+        ? "I hear that you want to keep talking. This receptionist demonstration cannot provide ongoing emotional support, and I won’t pretend that it can. Nothing is booked or saved; a practice staff member would need to continue from here."
+        : "I hear that you want to talk this through. I’m a scheduling demonstration, not a therapist, so I can’t provide emotional support here. Nothing is booked or saved; a practice staff member would need to continue from here.";
     }
     return "I couldn’t complete your request within this bounded demonstration, and I won’t claim that I did. Nothing is booked or saved; a practice staff member would need to continue from here.";
   }

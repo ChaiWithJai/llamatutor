@@ -90,6 +90,23 @@ const outputCheckSchema = z.object({
 
 export type MentalHealthOutputCheck = z.infer<typeof outputCheckSchema>;
 
+export type OutputRejectionReason =
+  | "content_rejected"
+  | "state_incoherent"
+  | "content_and_state_rejected";
+
+/** Keep reviewer and application-state failures distinguishable in the trace. */
+export function outputRejectionReason(options: {
+  contentApproved: boolean;
+  stateCoherent: boolean;
+}): OutputRejectionReason | null {
+  if (options.contentApproved && options.stateCoherent) return null;
+  if (!options.contentApproved && !options.stateCoherent) {
+    return "content_and_state_rejected";
+  }
+  return options.contentApproved ? "state_incoherent" : "content_rejected";
+}
+
 const assessmentJsonSchema = {
   type: "object",
   additionalProperties: false,
@@ -456,15 +473,17 @@ export async function runLiveHarness(
       (drafted.value as z.infer<typeof callerCandidateSchema>)
         .conversationComplete,
     );
+  const rejectionReason = outputRejectionReason({
+    contentApproved: checked.approved,
+    stateCoherent,
+  });
   const approved = checked.approved && stateCoherent;
   trace.push({
     id: "output",
     label: "Output check",
     detail: approved
       ? "Approved before reveal"
-      : stateCoherent
-        ? `Rejected; reviewed ${route} response substituted`
-        : "Rejected; candidate contradicted validated conversation state",
+      : `Rejected (${rejectionReason}); reviewed ${route} response substituted`,
     status: approved ? "passed" : "replaced",
     durationMs: checked.durationMs,
   });

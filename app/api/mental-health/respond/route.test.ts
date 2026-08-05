@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { POST, responseRuleForRoute, reviewedReplyForPersona } from "./route";
+import {
+  POST,
+  outputRejectionReason,
+  responseRuleForRoute,
+  reviewedReplyForPersona,
+} from "./route";
 import { edgeCaseManifest } from "../../../../utils/mentalHealthEdgeCases";
 import {
   initialReceptionConversationState,
@@ -191,6 +196,21 @@ describe("mental health demo endpoint", () => {
 });
 
 describe("response rules", () => {
+  it("keeps reviewer and state rejection causes separate", () => {
+    expect(
+      outputRejectionReason({ contentApproved: false, stateCoherent: true }),
+    ).toBe("content_rejected");
+    expect(
+      outputRejectionReason({ contentApproved: true, stateCoherent: false }),
+    ).toBe("state_incoherent");
+    expect(
+      outputRejectionReason({ contentApproved: false, stateCoherent: false }),
+    ).toBe("content_and_state_rejected");
+    expect(
+      outputRejectionReason({ contentApproved: true, stateCoherent: true }),
+    ).toBeNull();
+  });
+
   it("keeps the elevated rule identical for both personas", () => {
     expect(responseRuleForRoute("elevated")).toBe(
       responseRuleForRoute("elevated", "receptionist"),

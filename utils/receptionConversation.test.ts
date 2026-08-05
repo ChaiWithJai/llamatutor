@@ -91,4 +91,53 @@ describe("reception conversation state", () => {
     expect(constrained.acceptedSlot).toBeNull();
     expect(constrained.dateConstraint).toBe("two_weeks");
   });
+
+  it("recognizes a caller changing the job from scheduling to emotional support", () => {
+    const initial = transitionReceptionConversation(
+      initialReceptionConversationState(),
+      "Thank you.",
+    );
+    const support = transitionReceptionConversation(
+      initial,
+      "I need to talk everything out.",
+    );
+
+    expect(support).toMatchObject({
+      intent: "emotional_support",
+      requestedService: null,
+      nextAction: "handoff",
+      closeReason: null,
+    });
+    expect(reviewedReceptionistReply(support)).toContain(
+      "not a therapist",
+    );
+    expect(reviewedReceptionistReply(support)).not.toContain(
+      "What kind of scheduling help",
+    );
+  });
+
+  it("ends a repeated emotional-support request with a truthful bounded handoff", () => {
+    const first = transitionReceptionConversation(
+      initialReceptionConversationState(),
+      "I need to talk through what's happening in my head right now with you.",
+    );
+    const second = transitionReceptionConversation(
+      first,
+      "I still need to talk this through.",
+    );
+
+    expect(second).toMatchObject({
+      intent: "emotional_support",
+      nextAction: "handoff",
+      closeReason: "bounded_handoff",
+      unresolvedGoal: true,
+    });
+    expect(reviewedReceptionistReply(second)).toContain(
+      "cannot provide ongoing emotional support",
+    );
+    expect(reviewedReceptionistReply(second)).not.toBe(
+      reviewedReceptionistReply(first),
+    );
+    expect(receptionConversationComplete(second)).toBe(true);
+  });
 });
