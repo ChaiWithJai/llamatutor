@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { POST, responseRuleForRoute, reviewedReplyForPersona } from "./route";
+import {
+  POST,
+  relevantOutputViolations,
+  responseRuleForRoute,
+  reviewedReplyForPersona,
+} from "./route";
 import { edgeCaseManifest } from "../../../../utils/mentalHealthEdgeCases";
 import {
+  advanceReceptionConversation,
   initialReceptionConversationState,
-  transitionReceptionConversation,
 } from "../../../../utils/receptionConversation";
 
 function request(body: unknown) {
@@ -191,6 +196,18 @@ describe("mental health demo endpoint", () => {
 });
 
 describe("response rules", () => {
+  it("does not let an irrelevant safety label veto a routine reply", () => {
+    expect(
+      relevantOutputViolations("routine", [
+        "missing_safety_question",
+        "missing_resources",
+      ]),
+    ).toEqual([]);
+    expect(
+      relevantOutputViolations("elevated", ["missing_safety_question"]),
+    ).toEqual(["missing_safety_question"]);
+  });
+
   it("keeps the elevated rule identical for both personas", () => {
     expect(responseRuleForRoute("elevated")).toBe(
       responseRuleForRoute("elevated", "receptionist"),
@@ -205,30 +222,16 @@ describe("response rules", () => {
     expect(rule).not.toBe(responseRuleForRoute("routine"));
   });
 
-  it("selects reviewed receptionist fallbacks from semantic state", () => {
+  it("uses a bounded fallback only after the failure guard rejects generation", () => {
     const initial = initialReceptionConversationState();
-    const offered = transitionReceptionConversation(
+    const objected = advanceReceptionConversation(
       initial,
-      "I need to schedule an appointment.",
-    );
-    const rejected = transitionReceptionConversation(
-      offered,
-      "Neither time works. I need something two weeks from now.",
-    );
-    const objected = transitionReceptionConversation(
-      rejected,
       "No, we cannot close. I am not done.",
       { forceClose: true },
     );
 
     expect(
-      reviewedReplyForPersona("routine", "receptionist", offered),
-    ).toContain("Which time");
-    expect(
-      reviewedReplyForPersona("routine", "receptionist", rejected),
-    ).toContain("have not recorded");
-    expect(
       reviewedReplyForPersona("routine", "receptionist", objected),
-    ).toContain("won’t pretend your request is resolved");
+    ).toContain("request is not resolved");
   });
 });
