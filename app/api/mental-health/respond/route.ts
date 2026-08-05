@@ -18,13 +18,12 @@ import {
   getEdgeCase,
 } from "../../../../utils/mentalHealthEdgeCases";
 import { issueReviewedSpeechGrant } from "../../../../utils/reviewedSpeechGrant";
+import { deterministicConversationGuard } from "../../../../utils/conversationGuard";
 import {
+  advanceReceptionConversation,
   initialReceptionConversationState,
-  replayReceptionConversation,
-  receptionConversationComplete,
   receptionConversationStateSchema,
-  receptionistReplyIsCoherent,
-  reviewedReceptionistReply,
+  safeReceptionistFallback,
   type ReceptionConversationState,
 } from "../../../../utils/receptionConversation";
 
@@ -89,6 +88,17 @@ const outputCheckSchema = z.object({
 });
 
 export type MentalHealthOutputCheck = z.infer<typeof outputCheckSchema>;
+
+export function relevantOutputViolations(
+  route: MentalHealthRoute,
+  violations: MentalHealthOutputCheck["violations"],
+) {
+  return violations.filter(
+    (violation) =>
+      route !== "routine" ||
+      !["missing_safety_question", "missing_resources"].includes(violation),
+  );
+}
 
 const assessmentJsonSchema = {
   type: "object",
@@ -239,7 +249,7 @@ export function reviewedReplyForPersona(
   conversationState?: ReceptionConversationState,
 ) {
   if (persona === "receptionist" && route === "routine") {
-    return reviewedReceptionistReply(
+    return safeReceptionistFallback(
       conversationState ?? initialReceptionConversationState(),
     );
   }
@@ -299,10 +309,16 @@ export async function reviewMentalHealthOutput(options: {
       },
     ],
   });
+  const violations = relevantOutputViolations(
+    options.route,
+    checked.value.violations,
+  );
 
   return {
-    check: checked.value,
-    approved: checked.value.approved && checked.value.confidence >= 0.72,
+    check: { ...checked.value, violations },
+    approved:
+      checked.value.confidence >= 0.72 &&
+      (checked.value.approved || violations.length === 0),
     durationMs: checked.durationMs,
     model,
     usage: checked.usage,
@@ -342,10 +358,9 @@ export async function runLiveHarness(
     : message;
   const conversationState =
     persona === "receptionist"
-      ? replayReceptionConversation(
-          conversation?.history
-            .filter((turn) => turn.speaker === "caller")
-            .map((turn) => turn.text) ?? [],
+      ? advanceReceptionConversation(
+          conversation?.conversationState ??
+            initialReceptionConversationState(),
           message,
           { forceClose: conversation?.forceClose },
         )
@@ -368,7 +383,7 @@ export async function runLiveHarness(
       label: "Application route",
       detail:
         persona === "receptionist"
-          ? `${route} policy selected · semantic transition validated from revealed transcript`
+          ? `${route} policy selected · full revealed transcript retained`
           : `${route} policy selected by server code`,
       status: "routed",
       durationMs: 1,
@@ -426,7 +441,7 @@ export async function runLiveHarness(
         role: "system",
         content: `You write a response for an educational ${persona === "receptionist" ? "receptionist" : "reflection"} demo. ${responseRule} Use no more than 90 words. Never diagnose, prescribe treatment, claim a human is monitoring, or claim to be a therapist.${
           persona === "receptionist"
-            ? ` This is caller turn ${conversation?.turnNumber ?? 1}. The application has already validated this next conversation state: ${JSON.stringify(conversationState)}. Write only from that state. Never greet or reintroduce Maya after turn one. Never repeat a question already answered. Ask at most one next question. A bounded handoff must say the request remains unresolved and that practice staff would need to continue. Set conversationComplete true only when nextAction is close or closeReason is bounded_handoff.`
+            ? ` This is caller turn ${conversation?.turnNumber ?? 1}. Use the complete revealed transcript to respond to the caller's latest meaning; do not infer from a keyword category. Never greet or reintroduce Maya after turn one. Never repeat a question already answered. Acknowledge corrections before moving forward and ask at most one next question. There is no live transfer or real booking capability, so never offer to connect or transfer the caller. If the bounded demonstration must end, say the request remains unresolved and practice staff would need to continue. Set conversationComplete true only when the caller is finished or the application requires a bounded handoff.`
             : ""
         }`,
       },
@@ -447,24 +462,27 @@ export async function runLiveHarness(
     route,
     persona,
   });
-  const stateCoherent =
-    persona !== "receptionist" ||
-    !conversationState ||
-    receptionistReplyIsCoherent(
-      conversationState,
-      drafted.value.response,
-      (drafted.value as z.infer<typeof callerCandidateSchema>)
-        .conversationComplete,
-    );
-  const approved = checked.approved && stateCoherent;
+  const conversationCheck =
+    persona === "receptionist"
+      ? deterministicConversationGuard.review({
+          history: conversation?.history ?? [],
+          callerText: message,
+          candidate: drafted.value.response,
+          proposedComplete: (
+            drafted.value as z.infer<typeof callerCandidateSchema>
+          ).conversationComplete,
+          forceClose: conversation?.forceClose ?? false,
+        })
+      : { approved: true, reasons: [] };
+  const approved = checked.approved && conversationCheck.approved;
   trace.push({
     id: "output",
     label: "Output check",
     detail: approved
       ? "Approved before reveal"
-      : stateCoherent
+      : conversationCheck.approved
         ? `Rejected; reviewed ${route} response substituted`
-        : "Rejected; candidate contradicted validated conversation state",
+        : `Rejected by conversation guard: ${conversationCheck.reasons.join(", ")}`,
     status: approved ? "passed" : "replaced",
     durationMs: checked.durationMs,
   });
@@ -474,15 +492,22 @@ export async function runLiveHarness(
     route,
     reply: approved
       ? drafted.value.response
-      : reviewedReplyForPersona(route, persona, conversationState),
+      : persona === "receptionist" && route === "routine" && conversationState
+        ? safeReceptionistFallback(conversationState, message)
+        : reviewedReplyForPersona(route, persona, conversationState),
     provider: "together" as const,
     model: `${safetyModel} · ${coachModel}`,
     trace,
+    review: {
+      policy: checked.check,
+      conversation: conversationCheck,
+    },
     conversationComplete:
       persona === "receptionist"
-        ? conversationState
-          ? receptionConversationComplete(conversationState)
-          : false
+        ? conversationState?.closed ||
+          (approved &&
+            (drafted.value as z.infer<typeof callerCandidateSchema>)
+              .conversationComplete)
         : false,
     conversationState,
   };

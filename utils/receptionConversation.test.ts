@@ -1,94 +1,103 @@
 import { describe, expect, it } from "vitest";
+import { deterministicConversationGuard } from "./conversationGuard";
 import {
-  assertReceptionTransition,
+  advanceReceptionConversation,
   initialReceptionConversationState,
-  receptionConversationComplete,
-  reviewedReceptionistReply,
-  transitionReceptionConversation,
+  safeReceptionistFallback,
 } from "./receptionConversation";
 
-describe("reception conversation state", () => {
-  it("replays issue 69 without inventing an accepted choice or premature close", () => {
-    let state = initialReceptionConversationState();
-    state = transitionReceptionConversation(
-      state,
-      "I need to schedule my surgery.",
-    );
-    expect(state).toMatchObject({
-      intent: "procedure",
-      acceptedSlot: null,
-      nextAction: "handoff",
-      unresolvedGoal: true,
+describe("conversation guard", () => {
+  it("rejects the repeated response that caused issue 71", () => {
+    const result = deterministicConversationGuard.review({
+      history: [
+        {
+          speaker: "receptionist",
+          text: "What kind of scheduling help do you need?",
+        },
+      ],
+      callerText: "I need to talk through what's happening in my head.",
+      candidate: "What kind of scheduling help do you need?",
+      proposedComplete: false,
+      forceClose: false,
     });
-    expect(reviewedReceptionistReply(state)).toContain("practice staff");
+    expect(result).toEqual({ approved: false, reasons: ["repeated_reply"] });
+  });
 
-    state = transitionReceptionConversation(
-      state,
-      "Neither of those actually works. I need something two weeks from now.",
-    );
-    expect(state).toMatchObject({
-      acceptedSlot: null,
-      dateConstraint: "two_weeks",
-      correctionPending: true,
-      nextAction: "handoff",
+  it("rejects a reply that ignores a corrected constraint", () => {
+    const result = deterministicConversationGuard.review({
+      history: [],
+      callerText: "Neither time works. I need something two weeks from now.",
+      candidate: "Tuesday at 2:00 or 3:30—which works?",
+      proposedComplete: false,
+      forceClose: false,
     });
-    expect(reviewedReceptionistReply(state)).toContain("have not recorded");
+    expect(result.reasons).toContain("ignored_correction");
+  });
 
-    state = transitionReceptionConversation(
-      state,
-      "No, we can't close. You have to stay on with me.",
+  it("allows a natural response that acknowledges the correction", () => {
+    const result = deterministicConversationGuard.review({
+      history: [],
+      callerText: "Neither time works. I need something two weeks from now.",
+      candidate:
+        "I understand that neither time works and you need something two weeks from now. Nothing is booked or saved. What day works best?",
+      proposedComplete: false,
+      forceClose: false,
+    });
+    expect(result).toEqual({ approved: true, reasons: [] });
+  });
+
+  it("rejects invented bookings and clinical claims", () => {
+    const booking = deterministicConversationGuard.review({
+      history: [],
+      callerText: "Tuesday works.",
+      candidate: "I've booked your appointment for Tuesday.",
+      proposedComplete: true,
+      forceClose: false,
+    });
+    const clinical = deterministicConversationGuard.review({
+      history: [],
+      callerText: "I feel anxious.",
+      candidate: "You have anxiety. Increase your medication dose.",
+      proposedComplete: false,
+      forceClose: false,
+    });
+    expect(booking.reasons).toContain("booking_claim");
+    expect(clinical.reasons).toEqual(["clinical_claim"]);
+  });
+
+  it("rejects a live handoff the web-only demo cannot perform", () => {
+    const result = deterministicConversationGuard.review({
+      history: [],
+      callerText: "Can I talk to someone?",
+      candidate:
+        "Would you like me to connect you to a human staff member now?",
+      proposedComplete: false,
+      forceClose: false,
+    });
+    expect(result.reasons).toEqual(["live_handoff_offer"]);
+  });
+});
+
+describe("bounded call bookkeeping", () => {
+  it("does not pretend a forced close resolved the caller's goal", () => {
+    const state = advanceReceptionConversation(
+      initialReceptionConversationState(),
+      "No, we can't close. Stay on with me.",
       { forceClose: true },
     );
     expect(state).toMatchObject({
-      callerDisposition: "objects_to_close",
-      nextAction: "handoff",
+      closed: true,
       closeReason: "bounded_handoff",
-      unresolvedGoal: true,
     });
-    expect(reviewedReceptionistReply(state)).toContain(
-      "won’t pretend your request is resolved",
-    );
-    expect(receptionConversationComplete(state)).toBe(true);
+    expect(safeReceptionistFallback(state)).toContain("not resolved");
   });
 
-  it("rejects an accepted slot that was not offered", () => {
-    const initial = initialReceptionConversationState();
-    expect(() =>
-      assertReceptionTransition(initial, "Friday works", {
-        ...initial,
-        turnCount: 1,
-        acceptedSlot: "Friday at noon",
-        unresolvedGoal: false,
-        nextAction: "confirm_demo_choice",
-      }),
-    ).toThrow("never offered");
-  });
-
-  it("lets the caller correct an accepted slot", () => {
-    let state = transitionReceptionConversation(
-      initialReceptionConversationState(),
-      "I need an appointment.",
-    );
-    state = transitionReceptionConversation(state, "Two o'clock works.");
-    state = transitionReceptionConversation(
-      state,
-      "Actually, change that to three thirty instead.",
-    );
-    expect(state.acceptedSlot).toBe("Tuesday at 3:30 PM");
-    expect(state.rejectedSlots).toContain("Tuesday at 2:00 PM");
-    expect(reviewedReceptionistReply(state)).toContain("updated");
-  });
-
-  it("does not mistake a two-week constraint for accepting two o'clock", () => {
-    const offered = transitionReceptionConversation(
-      initialReceptionConversationState(),
-      "I need an appointment.",
-    );
-    const constrained = transitionReceptionConversation(
-      offered,
-      "I need something two weeks from now.",
-    );
-    expect(constrained.acceptedSlot).toBeNull();
-    expect(constrained.dateConstraint).toBe("two_weeks");
+  it("keeps a rejected support turn moving without repeating the scheduler", () => {
+    expect(
+      safeReceptionistFallback(
+        initialReceptionConversationState(),
+        "I need to talk through what is happening in my head.",
+      ),
+    ).toContain("Are you in immediate danger");
   });
 });
