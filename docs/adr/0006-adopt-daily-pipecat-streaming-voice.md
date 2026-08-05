@@ -220,9 +220,9 @@ behind Caddy, and provider credentials never enter browser responses.
 A synthetic Chromium call through production Netlify, Caddy, Pipecat, Together
 STT/TTS, and the Netlify review route measured:
 
-- 4.646 seconds from connection to first audio
-- 5.451 seconds from caller stop to the reviewed reply
-- 11 milliseconds from caller speech to interrupted audio stopping
+- 3.322 seconds from connection to first audio
+- 4.362 seconds from caller stop to the reviewed reply
+- 4 milliseconds from caller speech to interrupted audio stopping
 
 A separate cold preview pass took 10.712 seconds to first audio. The transport and
 interruption behavior are proven; latency is not yet at the target benchmark.

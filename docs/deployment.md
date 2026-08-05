@@ -93,8 +93,8 @@ Observed on 2026-08-05:
   Its HTTP listener still binds only to loopback. Daily uses Docker bridge
   networking.
 - SmallWebRTC live media and a real private Daily room/token startup both
-  passed. The production synthetic Chromium pass measured 4.646 seconds to
-  first audio, 5.451 seconds from caller stop to the reviewed reply, and 11
+  passed. The promoted-image production smoke measured 3.322 seconds to first
+  audio, 4.362 seconds from caller stop to the reviewed reply, and 4
   milliseconds to stop interrupted audio. A cold preview pass took 10.712
   seconds to first audio, so latency tuning remains open.
 - Caddy now owns ports 80/443. Writebook remains healthy behind it on
