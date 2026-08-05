@@ -220,8 +220,9 @@ for the production environment. Add these secrets to both:
 - `DROPLET_KNOWN_HOSTS`
 
 The Droplet workflow is manual-only while Netlify is the active host. Select
-`staging` or `production` and choose the commit to run. It builds one immutable
-image and promotes that image through the health-checked deployment script.
+`staging` or `production` and choose the commit to run. It builds a SHA tag only
+when absent, resolves its registry digest, and deploys that digest. Production
+therefore reuses the exact staging image.
 
 The deployment retains the previous local image tag. If `/api/health` does not
 become healthy within 60 seconds, the script restores the previous container.

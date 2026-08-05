@@ -261,13 +261,13 @@ Read [ADR 0002](./docs/adr/0002-option-b-netlify-identity-database.md) for the f
 
 ## CI, deploy, release
 
-| Part   | Current path                                                                                                         |
-| ------ | -------------------------------------------------------------------------------------------------------------------- |
-| Web    | Netlify builds every pull request. `main` deploys production.                                                        |
-| Data   | Netlify gives each preview its own database branch and applies migrations during deploy.                             |
-| Voice  | GitHub builds one Pipecat image tagged with the commit SHA. DigitalOcean runs SmallWebRTC and Daily from that image. |
-| Review | Netlify reviews each final transcript. The worker speaks only approved text.                                         |
-| Search | Exa runs on Netlify. Voice does not call Exa.                                                                        |
+| Part   | Current path                                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------------------------------- |
+| Web    | Netlify builds every pull request. `main` deploys production.                                                       |
+| Data   | Netlify gives each preview its own database branch and applies migrations during deploy.                            |
+| Voice  | GitHub builds one Pipecat image per commit and deploys its digest. DigitalOcean runs SmallWebRTC and Daily from it. |
+| Review | Netlify reviews each final transcript. The worker speaks only approved text.                                        |
+| Search | Exa runs on Netlify. Voice does not call Exa.                                                                       |
 
 The GitHub quality gate runs lint, unit tests, the production build, voice tests, the voice image build, and browser tests. It uses no provider secrets. Netlify adds the deploy preview check.
 
@@ -288,7 +288,7 @@ Release voice:
 1. Run the voice tests and image build above.
 2. Run `Deploy voice worker` for `staging` on the chosen commit.
 3. Test one reviewed reply, one blocked reply, one interruption, and health limits.
-4. Run the same commit for `production` after approval.
+4. Run the same commit for `production` after approval. The workflow reuses the staging digest.
 5. Test production through Netlify.
 
 Current demo limits:
