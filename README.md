@@ -189,7 +189,7 @@ Copy `.example.env` to `.env` for local work. Never commit a value.
 
 Netlify supplies its database and Identity settings. Provider keys stay on Netlify or the Droplet. `VOICE_WORKER_SHARED_SECRET` and `DAILY_API_KEY` must match in Netlify and the matching Droplet environment. GitHub stores deploy access only.
 
-Before the first workflow deploy, create GitHub environments named `staging` and `production`. Require approval for `production`.
+GitHub has `staging` and approval-gated `production` environments. They contain deploy access only.
 
 ## Tests
 
@@ -295,7 +295,7 @@ Current demo limits:
 
 - The web app and staging voice services are live.
 - Daily can create a private room and token. The Daily account still needs billing before a browser can join.
-- SmallWebRTC carried a reviewed reply through the Droplet. Synthetic Chromium measured 2.211 seconds to first audio, 3.448 seconds from caller stop to the reviewed reply, and 1 millisecond to stop interrupted audio.
+- SmallWebRTC carried reviewed replies through the Droplet. The final synthetic Chromium pass measured 4.160 seconds to first audio, 3.508 seconds from caller stop to the reviewed reply, and 9 milliseconds to stop interrupted audio. A cold pass took 10.712 seconds to first audio, so latency tuning remains open.
 - The demo is web only. It does not use phone numbers or save call text.
 
 Rollback:

@@ -220,9 +220,12 @@ behind Caddy, and provider credentials never enter browser responses.
 A synthetic Chromium call through the deploy preview, Caddy, Pipecat, Together
 STT/TTS, and the Netlify review route measured:
 
-- 2.211 seconds from connection to first audio
-- 3.448 seconds from caller stop to the reviewed reply
-- 1 millisecond from caller speech to interrupted audio stopping
+- 4.160 seconds from connection to first audio
+- 3.508 seconds from caller stop to the reviewed reply
+- 9 milliseconds from caller speech to interrupted audio stopping
+
+A separate cold pass took 10.712 seconds to first audio. The transport and
+interruption behavior are proven; latency is not yet at the target benchmark.
 
 Daily room and token creation also passed without exposing its API key. A Daily
 browser call remains blocked until billing is added to the account. Multi-turn
