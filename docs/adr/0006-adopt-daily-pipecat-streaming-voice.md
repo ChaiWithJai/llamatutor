@@ -72,12 +72,12 @@ guessing the caller's category before it is allowed to speak.
 
 ### Benchmark that motivated the decision
 
-| | Current (sequential REST) | Daily/Pipecat, tuned |
-|---|---|---|
-| Time to first audio | 3,000–5,000 ms (measured live) | 600–1,200 ms (industry-typical; to be measured in our pilot) |
-| Barge-in | Structurally impossible | Native |
-| Conversation layer | Enum + cascade + scripted copy (compounding complexity) | Generate-then-guard (complexity deleted, not managed) |
-| Infra | Serverless only | Existing droplet path (pilot), Daily-hosted media |
+|                     | Current (sequential REST)                               | Daily/Pipecat, tuned                                         |
+| ------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| Time to first audio | 3,000–5,000 ms (measured live)                          | 600–1,200 ms (industry-typical; to be measured in our pilot) |
+| Barge-in            | Structurally impossible                                 | Native                                                       |
+| Conversation layer  | Enum + cascade + scripted copy (compounding complexity) | Generate-then-guard (complexity deleted, not managed)        |
+| Infra               | Serverless only                                         | Existing droplet path (pilot), Daily-hosted media            |
 
 ### Research reconciliation
 
@@ -88,7 +88,7 @@ facts this ADR must not blur:
 1. **Pipecat's default posture conflicts with our safety gate.** Out of the
    box, Pipecat streams LLM tokens into TTS at sentence granularity for
    latency. No first-party moderation/review processor ships with it. A
-   compliant design therefore deliberately does *not* stream the response
+   compliant design therefore deliberately does _not_ stream the response
    leg: the guard layer buffers each utterance, reviews it, and only then
    releases it to TTS. Consequence: our realistic first-audio latency sits
    above the 600–1,200 ms industry-typical row — the streaming wins we
@@ -168,7 +168,7 @@ into step 1.
 ### Defer the decision until a client demands barge-in
 
 Rejected. An earlier draft of this ADR took that position. It undervalued
-two things: the demo's differentiator *is* conversational fluidity, so the
+two things: the demo's differentiator _is_ conversational fluidity, so the
 latency/interruption ceiling is a present cost, not a future one; and the
 prerequisite work (the guard layer) is identical either way, so deferral
 bought no optionality — it only delayed the pilot that produces real
@@ -215,6 +215,22 @@ conversation-policy fork.
 Netlify remains the only review authority. The worker sends final transcript,
 history, and bounded state to the authenticated control plane, and speech is
 released only after a `reviewed: true` response. The worker binds to loopback
-behind Caddy, and provider credentials never enter browser responses. Full
-microphone, interruption, multi-turn trajectory, and latency evidence is still
-required before promotion.
+behind Caddy, and provider credentials never enter browser responses.
+
+A synthetic Chromium call through the deploy preview, Caddy, Pipecat, Together
+STT/TTS, and the Netlify review route measured:
+
+- 2.211 seconds from connection to first audio
+- 3.448 seconds from caller stop to the reviewed reply
+- 1 millisecond from caller speech to interrupted audio stopping
+
+Daily room and token creation also passed without exposing its API key. A Daily
+browser call remains blocked until billing is added to the account. Multi-turn
+trajectory quality remains a promotion gate.
+
+SmallWebRTC uses Linux host networking because aiortc selects ephemeral UDP
+media ports. Its HTTP listener stays on `127.0.0.1` behind Caddy. This follows
+[Pipecat's ICE guidance](https://docs.pipecat.ai/api-reference/server/services/transport/small-webrtc)
+and the project's
+[Docker deployment finding](https://github.com/pipecat-ai/pipecat/issues/1808).
+Daily stays on Docker bridge networking because Daily carries the media.

@@ -23,7 +23,6 @@ from pipecat.runner.types import (
     SmallWebRTCRunnerArguments,
 )
 from pipecat.services.openai.stt import OpenAISTTService
-from pipecat.services.openai.tts import OpenAITTSService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
@@ -31,6 +30,7 @@ from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.workers.runner import WorkerRunner
 
 from review_client import ReviewClient
+from together_tts import TogetherTTSService
 
 load_dotenv(override=False)
 logger.disable("pipecat.services.whisper.base_stt")
@@ -158,14 +158,11 @@ async def run_bot(transport: BaseTransport) -> None:
             language="en",
         ),
     )
-    tts = OpenAITTSService(
+    tts = TogetherTTSService(
         api_key=together_key,
         base_url=base_url,
-        settings=OpenAITTSService.Settings(
-            model=os.getenv("TOGETHER_TTS_MODEL", "cartesia/sonic-2"),
-            voice=os.getenv("TOGETHER_TTS_RECEPTIONIST_VOICE", "laidback woman"),
-            language="en",
-        ),
+        model=os.getenv("TOGETHER_TTS_MODEL", "cartesia/sonic-2"),
+        voice=os.getenv("TOGETHER_TTS_RECEPTIONIST_VOICE", "laidback woman"),
     )
     context = LLMContext()
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(

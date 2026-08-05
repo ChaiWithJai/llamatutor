@@ -151,14 +151,14 @@ EXA_API_KEY=your_key
 The full local environment includes the Next.js application, Netlify Functions, Identity context, and a local Postgres database.
 
 ```bash
-pnpm dlx netlify-cli@27.0.1 link
-pnpm dlx netlify-cli@27.0.1 dev
+pnpm --package=netlify-cli@27.0.1 dlx netlify link
+pnpm --package=netlify-cli@27.0.1 dlx netlify dev
 ```
 
 Keep that process running. In a second terminal, apply the local database migration.
 
 ```bash
-pnpm dlx netlify-cli@27.0.1 database migrations apply
+pnpm --package=netlify-cli@27.0.1 dlx netlify database migrations apply
 ```
 
 Open the local URL printed by Netlify CLI. It is usually `http://localhost:8888`.
@@ -189,7 +189,7 @@ Copy `.example.env` to `.env` for local work. Never commit a value.
 
 Netlify supplies its database and Identity settings. Provider keys stay on Netlify or the Droplet. `VOICE_WORKER_SHARED_SECRET` and `DAILY_API_KEY` must match in Netlify and the matching Droplet environment. GitHub stores deploy access only.
 
-The repository does not yet have the `staging` and `production` GitHub environments. Create them before the first workflow deploy. Require approval for `production`.
+Before the first workflow deploy, create GitHub environments named `staging` and `production`. Require approval for `production`.
 
 ## Tests
 
@@ -209,7 +209,7 @@ The repository includes these test layers:
 | `pnpm test:integration`                                | Postgres inserts and relationships inside a transaction that is rolled back |
 | `pnpm test:e2e`                                        | Public lesson, failure, long session, and mobile browser journeys           |
 | `pnpm check`                                           | Lint, unit tests, and the production Next.js build                          |
-| `pnpm dlx netlify-cli@27.0.1 build`                    | The full Netlify build, functions, and database migration setup             |
+| `pnpm --package=netlify-cli@27.0.1 dlx netlify build`  | The full Netlify build, functions, and database migration setup             |
 | `docker build -f voice-worker/Dockerfile voice-worker` | Locked Pipecat worker image                                                 |
 | `pnpm verify:deployment -- URL`                        | Live web, provider, voice health, and WebRTC startup                        |
 
@@ -225,7 +225,7 @@ docker build -f voice-worker/Dockerfile voice-worker
 The database integration test needs a local `NETLIFY_DATABASE_URL`. Run the database status command, copy the local Postgres URL it prints, and pass it only to the test process.
 
 ```bash
-pnpm dlx netlify-cli@27.0.1 database status
+pnpm --package=netlify-cli@27.0.1 dlx netlify database status
 NETLIFY_DATABASE_URL=postgres://localhost:PORT/postgres pnpm test:integration
 ```
 
@@ -271,6 +271,8 @@ Read [ADR 0002](./docs/adr/0002-option-b-netlify-identity-database.md) for the f
 
 The GitHub quality gate runs lint, unit tests, the production build, voice tests, the voice image build, and browser tests. It uses no provider secrets. Netlify adds the deploy preview check.
 
+SmallWebRTC uses host networking for peer media and keeps HTTP on loopback. Daily uses Docker bridge networking. Caddy is the only public control path.
+
 Release web:
 
 1. Branch from current `main`.
@@ -293,7 +295,7 @@ Current demo limits:
 
 - The web app and staging voice services are live.
 - Daily can create a private room and token. The Daily account still needs billing before a browser can join.
-- SmallWebRTC can start a session. Live media through the Droplet is still a release check.
+- SmallWebRTC carried a reviewed reply through the Droplet. Synthetic Chromium measured 2.211 seconds to first audio, 3.448 seconds from caller stop to the reviewed reply, and 1 millisecond to stop interrupted audio.
 - The demo is web only. It does not use phone numbers or save call text.
 
 Rollback:

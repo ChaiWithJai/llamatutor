@@ -13,9 +13,9 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev \
     && cd /tmp \
     && /app/.venv/bin/python -P -m nltk.downloader -d "${NLTK_DATA}" punkt_tab
-COPY bot.py review_client.py ./
+COPY bot.py review_client.py together_tts.py ./
 
 RUN useradd --create-home --uid 10001 worker
 USER worker
 EXPOSE 7860
-CMD ["sh", "-c", "cd /tmp && exec env PYTHONPATH=/app /app/.venv/bin/python -P /app/bot.py --host 0.0.0.0 --port 7860 -t \"${PIPECAT_TRANSPORT:-webrtc}\""]
+CMD ["sh", "-c", "cd /tmp && exec env PYTHONPATH=/app /app/.venv/bin/python -P /app/bot.py --host \"${PIPECAT_HOST:-0.0.0.0}\" --port \"${PIPECAT_PORT:-7860}\" -t \"${PIPECAT_TRANSPORT:-webrtc}\""]

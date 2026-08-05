@@ -89,13 +89,19 @@ Observed on 2026-08-05:
   `127.0.0.1:3201` and `127.0.0.1:3203`; each is limited to 768 MB RAM and
   0.75 CPU. Caddy exposes the Daily process only under the authenticated
   `/daily/` path.
-- SmallWebRTC session startup and a real private Daily room/token startup both
-  passed from the same worker image.
+- SmallWebRTC uses Linux host networking for its ephemeral UDP media ports.
+  Its HTTP listener still binds only to loopback. Daily uses Docker bridge
+  networking.
+- SmallWebRTC live media and a real private Daily room/token startup both
+  passed from the same worker image. Synthetic Chromium measured 2.211 seconds
+  to first audio, 3.448 seconds from caller stop to the reviewed reply, and 1
+  millisecond to stop interrupted audio.
 - Caddy now owns ports 80/443. Writebook remains healthy behind it on
   `127.0.0.1:3080`, with a validated pre-migration archive under `/root`.
 
-The pilot is not a production promotion. Full microphone, interruption, and
-multi-turn acceptance evidence remains a promotion gate in ADR 0006.
+The pilot is not a production promotion. Multi-turn trajectory evidence and a
+Daily browser call remain promotion gates in ADR 0006. Daily room creation
+works, but the account needs billing before a browser can join.
 
 ## Could the DigitalOcean Droplet host the web app too?
 
