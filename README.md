@@ -165,7 +165,7 @@ If you are working only on source search, lesson generation, or public interface
 pnpm dev
 ```
 
-Open `http://localhost:3000`. Account persistence and coaching data will not work in this mode.
+Open `http://localhost:3000`. The `/api/coach` contract is available, but account persistence still needs Netlify Identity and Database.
 
 ## Environment variables
 
@@ -178,7 +178,7 @@ Open `http://localhost:3000`. Account persistence and coaching data will not wor
 | `UPSTASH_REDIS_REST_URL` | Public deployments | Stores request limit state |
 | `UPSTASH_REDIS_REST_TOKEN` | Public deployments | Authenticates the Upstash request limit client |
 
-Netlify supplies `NETLIFY_DB_URL` and Identity settings at runtime. Do not commit these values or set one shared database URL for deploy previews.
+Netlify supplies `NETLIFY_DATABASE_URL` and Identity settings at runtime. Do not commit these values or set one shared database URL for deploy previews.
 
 ## Tests
 
@@ -200,11 +200,11 @@ The repository includes these test layers:
 | `pnpm check` | Lint, unit tests, and the production Next.js build |
 | `pnpm dlx netlify-cli@27.0.1 build` | The full Netlify build, functions, and database migration setup |
 
-The database integration test needs a local `NETLIFY_DB_URL`. Run the database status command, copy the local Postgres URL it prints, and pass it only to the test process.
+The database integration test needs a local `NETLIFY_DATABASE_URL`. Run the database status command, copy the local Postgres URL it prints, and pass it only to the test process.
 
 ```bash
 pnpm dlx netlify-cli@27.0.1 database status
-NETLIFY_DB_URL=postgres://localhost:PORT/postgres pnpm test:integration
+NETLIFY_DATABASE_URL=postgres://localhost:PORT/postgres pnpm test:integration
 ```
 
 The health endpoint is available at `/api/health`.
@@ -215,7 +215,7 @@ The health endpoint is available at `/api/health`.
 app/                         Pages and server routes
 components/                  Learner interface components
 utils/                       Model streaming and coaching rules
-netlify/functions/           Authenticated coaching API
+netlify/functions/           Netlify adapter for the shared coaching API
 netlify/database/migrations/ Postgres schema changes
 tests/e2e/                   Playwright browser tests
 scripts/                     Database integration checks
@@ -245,6 +245,8 @@ Netlify is the active host.
 - A merge to `main` deploys the production site at [tutor.dharmicdata.org](https://tutor.dharmicdata.org).
 - Netlify applies pending database migrations during the deploy.
 - The files in `deploy/` provide a manual DigitalOcean fallback with health checks and rollback.
+
+Current request path: browser → Netlify/Next → Together, Exa, Wolfram, or Netlify Database. Provider keys stay server-side in Netlify. The accepted voice target keeps Netlify as the web/control plane and moves long-lived provider/voice work to a DigitalOcean service with Daily/Pipecat; that service is not deployed yet. See ADR 0006 for the promotion gates.
 
 Read [the deployment guide](./docs/deployment.md) for environment setup, release checks, and the DigitalOcean fallback.
 

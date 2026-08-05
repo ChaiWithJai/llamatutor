@@ -21,6 +21,27 @@ if (health.status !== "ok") {
   throw new Error("Health check did not report an ok status.");
 }
 
+const coachResponse = await fetch(new URL("/api/coach", deploymentUrl));
+if (coachResponse.status !== 401) {
+  throw new Error(
+    `Coach contract check expected unauthenticated HTTP 401, received ${coachResponse.status}.`,
+  );
+}
+
+const reflectionResponse = await fetch(
+  new URL("/api/mental-health/respond", deploymentUrl),
+  {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "guided", scenarioId: "voice-booking" }),
+  },
+);
+if (!reflectionResponse.ok) {
+  throw new Error(
+    `Reflection demo check failed with HTTP ${reflectionResponse.status}.`,
+  );
+}
+
 const drilldownResponse = await fetch(
   new URL("/api/drilldown", deploymentUrl),
   {

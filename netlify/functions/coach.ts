@@ -29,7 +29,7 @@ const noStoreHeaders = {
 };
 
 async function requireUser(request: Request) {
-  const contextualUser = await getUser();
+  const contextualUser = await getUser().catch(() => null);
   if (contextualUser?.id) return contextualUser;
 
   const authorization = request.headers.get("authorization");
@@ -112,7 +112,8 @@ async function getDashboard(request: Request) {
   }
 
   const db = getDatabase();
-  const exportRequested = new URL(request.url).searchParams.get("export") === "1";
+  const exportRequested =
+    new URL(request.url).searchParams.get("export") === "1";
 
   if (exportRequested) {
     const [profiles, goals, reps, sessions] = await Promise.all([
