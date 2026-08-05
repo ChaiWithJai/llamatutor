@@ -60,3 +60,123 @@ services:
       timeout: 5s
       start_period: 20s
       retries: 3
+
+  voice-production:
+    image: llamatutor-voice:production
+    container_name: llamatutor-voice-production
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env.voice.production
+    ports:
+      - "127.0.0.1:3200:7860"
+    cpus: 0.75
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/healthz', timeout=3)",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+  voice-daily-production:
+    image: llamatutor-voice:production
+    container_name: llamatutor-voice-daily-production
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env.voice.production
+    environment:
+      PIPECAT_TRANSPORT: daily
+    ports:
+      - "127.0.0.1:3202:7860"
+    cpus: 0.75
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/healthz', timeout=3)",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+  voice-staging:
+    image: llamatutor-voice:staging
+    container_name: llamatutor-voice-staging
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env.voice.staging
+    ports:
+      - "127.0.0.1:3201:7860"
+    cpus: 0.75
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/healthz', timeout=3)",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+  voice-daily-staging:
+    image: llamatutor-voice:staging
+    container_name: llamatutor-voice-daily-staging
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env.voice.staging
+    environment:
+      PIPECAT_TRANSPORT: daily
+    ports:
+      - "127.0.0.1:3203:7860"
+    cpus: 0.75
+    mem_limit: 768m
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/healthz', timeout=3)",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3

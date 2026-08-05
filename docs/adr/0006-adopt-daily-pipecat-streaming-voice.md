@@ -202,3 +202,19 @@ build.
   conversation policy out of the state machine, cleaning the test suite,
   and landing tests that verify the target experience rather than enum
   branches.
+
+## Pilot evidence (2026-08-05)
+
+The staging implementation uses one Pipecat image in two bounded processes:
+self-hosted SmallWebRTC by default and Daily under an authenticated `/daily/`
+path. Both session-start paths passed on the DigitalOcean host. This does not
+reverse the Daily decision; it keeps the pilot usable before production
+promotion and makes transport a deployment choice instead of a
+conversation-policy fork.
+
+Netlify remains the only review authority. The worker sends final transcript,
+history, and bounded state to the authenticated control plane, and speech is
+released only after a `reviewed: true` response. The worker binds to loopback
+behind Caddy, and provider credentials never enter browser responses. Full
+microphone, interruption, multi-turn trajectory, and latency evidence is still
+required before promotion.

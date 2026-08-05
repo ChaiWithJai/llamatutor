@@ -29,6 +29,22 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm build
 
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.21"
+
+      - name: Voice worker checks
+        working-directory: voice-worker
+        run: |
+          uv sync --frozen
+          cd /tmp
+          PYTHONPATH="${GITHUB_WORKSPACE}/voice-worker" \
+            "${GITHUB_WORKSPACE}/voice-worker/.venv/bin/python" -P \
+            -m unittest discover -v -s "${GITHUB_WORKSPACE}/voice-worker" -p 'test_*.py'
+
+      - name: Voice worker image
+        run: docker build -f voice-worker/Dockerfile voice-worker
+
       - name: Install browser
         run: pnpm exec playwright install --with-deps chromium
 

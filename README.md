@@ -221,7 +221,7 @@ tests/e2e/                   Playwright browser tests
 scripts/                     Database integration checks
 styles/                      Shared design tokens
 docs/                        Decisions, design notes, and deployment guide
-deploy/                      Manual DigitalOcean fallback
+deploy/                      DigitalOcean voice worker and web fallback
 ```
 
 ## Data and privacy
@@ -244,9 +244,9 @@ Netlify is the active host.
 - A pull request runs the GitHub quality gate and gets a Netlify preview with its own database branch.
 - A merge to `main` deploys the production site at [tutor.dharmicdata.org](https://tutor.dharmicdata.org).
 - Netlify applies pending database migrations during the deploy.
-- The files in `deploy/` provide a manual DigitalOcean fallback with health checks and rollback.
+- The files in `deploy/` run the DigitalOcean voice pilot and retain a manual web fallback with health checks and rollback.
 
-Current request path: browser → Netlify/Next → Together, Exa, Wolfram, or Netlify Database. Provider keys stay server-side in Netlify. The accepted voice target keeps Netlify as the web/control plane and moves long-lived provider/voice work to a DigitalOcean service with Daily/Pipecat; that service is not deployed yet. See ADR 0006 for the promotion gates.
+Text request path: browser → Netlify/Next → Together, Exa, Wolfram, or Netlify Database. Voice request path: browser → Netlify control plane → authenticated Pipecat worker on DigitalOcean. Final transcripts return to the Netlify guard; only a reviewed reply may reach speech. The staging worker supports self-hosted SmallWebRTC and Daily from the same image. Provider keys stay server-side; Exa is not in the live voice path. See ADR 0006 for the promotion gates.
 
 Read [the deployment guide](./docs/deployment.md) for environment setup, release checks, and the DigitalOcean fallback.
 

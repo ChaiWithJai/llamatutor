@@ -1,0 +1,16 @@
+grow.chaiwithjai.com, book.chaiwithjai.com {
+	reverse_proxy 127.0.0.1:3080
+}
+
+voice-staging.dharmicdata.org {
+	@authorized header Authorization "Bearer {$VOICE_WORKER_SHARED_SECRET}"
+	handle @authorized {
+		handle_path /daily/* {
+			reverse_proxy 127.0.0.1:3203
+		}
+		handle {
+			reverse_proxy 127.0.0.1:3201
+		}
+	}
+	respond "Unauthorized" 401
+}
