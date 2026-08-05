@@ -219,6 +219,10 @@ for the production environment. Add these secrets to both:
 - `DROPLET_SSH_KEY`
 - `DROPLET_KNOWN_HOSTS`
 
+Use a dedicated, passphrase-free CI key for `DROPLET_SSH_KEY`; do not copy a
+maintainer key. Prefix its public entry in the Droplet's `authorized_keys` with
+`restrict`. Remove that entry when the workflow is retired or the key rotates.
+
 The Droplet workflow is manual-only while Netlify is the active host. Select
 `staging` or `production` and choose the commit to run. It builds a SHA tag only
 when absent, resolves its registry digest, and deploys that digest. Production

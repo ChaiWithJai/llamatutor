@@ -190,6 +190,7 @@ Copy `.example.env` to `.env` for local work. Never commit a value.
 Netlify supplies its database and Identity settings. Provider keys stay on Netlify or the Droplet. `VOICE_WORKER_SHARED_SECRET` and `DAILY_API_KEY` must match in Netlify and the matching Droplet environment. GitHub stores deploy access only.
 
 GitHub has `staging` and approval-gated `production` environments. They contain deploy access only.
+`DROPLET_SSH_KEY` is a dedicated CI key, not a maintainer key.
 
 ## Tests
 
